@@ -184,7 +184,7 @@
             <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i> Daftar Utang <span id="badgeActiveCount" class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-200 ml-1">33</span>
           </button>
           <button onclick="switchTab('cashflow')" id="tab-btn-cashflow" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-slate-800 text-slate-400 hover:text-white">
-            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> Arus Kas Tgl 25
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> Arus Kas & Likuiditas
           </button>
           <button onclick="switchTab('parent')" id="tab-btn-parent" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20">
             <i data-lucide="heart-handshake" class="w-3.5 h-3.5"></i> Mode Orang Tua
@@ -300,12 +300,12 @@
           <!-- KPI 4: Sisa Kas Likuiditas Dingin -->
           <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
             <div class="flex items-center justify-between text-slate-400 text-xs font-semibold">
-              <span>Sisa Kas Dingin (Tgl 25)</span>
+              <span>Sisa Kas Dingin (Likuiditas Riil)</span>
               <span class="p-1.5 rounded-lg bg-blue-500/10 text-blue-400"><i data-lucide="coins" class="w-4 h-4"></i></span>
             </div>
-            <div class="mt-2 text-xl lg:text-3xl font-extrabold text-blue-400 tracking-tight money" id="kpiKasDingin">Rp 8.471.744</div>
+            <div class="mt-2 text-xl lg:text-3xl font-extrabold text-blue-400 tracking-tight money" id="kpiKasDingin">Rp 0</div>
             <div class="mt-2 text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
-              <i data-lucide="shield" class="w-3 h-3"></i> Siap untuk buffer awal November
+              <i data-lucide="shield" class="w-3 h-3"></i> Terhitung otomatis dari seluruh arus kas
             </div>
           </div>
         </div>
@@ -411,7 +411,7 @@
       </div>
 
       <!-- ===================================================================== -->
-      <!-- TAB 3: ARUS KAS REALISASI TGL 25 -->
+      <!-- TAB 3: ARUS KAS & MANAJEMEN LIKUIDITAS (KAS DINGIN) -->
       <!-- ===================================================================== -->
       <div id="tab-cashflow" class="tab-content hidden space-y-6">
         
@@ -420,21 +420,33 @@
           <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 class="text-base font-extrabold text-white flex items-center gap-2">
-                <i data-lucide="check-check" class="w-5 h-5 text-emerald-400"></i> Rekapitulasi Pembayaran Tgl 25 Oktober 2026
+                <i data-lucide="wallet-cards" class="w-5 h-5 text-emerald-400"></i> Rekapitulasi Kas Dingin & Arus Kas
               </h3>
-              <p class="text-xs text-slate-300 mt-1">Eksekusi likuiditas modal berjalan aman dan tuntas.</p>
+              <p class="text-xs text-slate-300 mt-1">Saldo likuiditas nyata di tangan yang siap digunakan untuk operasional atau cadangan.</p>
             </div>
-            <div class="text-right">
-              <div class="text-xs text-slate-400">Sisa Kas Tersedia di Tangan</div>
-              <div class="text-2xl font-black text-emerald-400 tracking-tight money" id="kpiKasTangan">Rp 8.471.744</div>
+            <div class="text-right sm:text-right">
+              <div class="text-xs text-slate-400">Total Sisa Kas Dingin Saat Ini</div>
+              <div class="text-2xl sm:text-3xl font-black text-emerald-400 tracking-tight money" id="kpiKasTangan">Rp 0</div>
+              <span class="text-[10px] text-slate-400">Otomatis terhitung dari mutasi kas & pelunasan</span>
             </div>
+          </div>
+
+          <!-- Action Buttons for Cashflow -->
+          <div class="flex items-center gap-2 pt-2 border-t border-slate-800/80 flex-wrap">
+            <button onclick="openCashModal('keluar')" class="px-3.5 py-2 rounded-xl bg-rose-600/30 hover:bg-rose-600 text-rose-300 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 border border-rose-500/30 shadow-sm">
+              <i data-lucide="shopping-bag" class="w-4 h-4"></i> Catat Pembelian Barang / Pengeluaran
+            </button>
+            <button onclick="openCashModal('masuk')" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all flex items-center gap-1.5 shadow-md shadow-emerald-600/20">
+              <i data-lucide="plus-circle" class="w-4 h-4"></i> Tambah Dana Masuk / Pemasukan
+            </button>
           </div>
         </div>
 
         <!-- Cashflow Transaction Table -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
           <div class="p-4 border-b border-slate-800 flex items-center justify-between">
-            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Riwayat Transaksi Masuk & Keluar</h4>
+            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Buku Riwayat Arus Kas Lengkap</h4>
+            <span class="text-xs text-slate-500">Klik ikon sampah untuk menghapus transaksi</span>
           </div>
           <div class="overflow-x-auto custom-scroll">
             <table class="w-full text-left text-xs whitespace-nowrap">
@@ -444,6 +456,7 @@
                   <th class="py-3 px-4">Keterangan Transaksi</th>
                   <th class="py-3 px-4">Kategori Alokasi</th>
                   <th class="py-3 px-4 text-right">Nominal Arus Kas</th>
+                  <th class="py-3 px-4 text-center">Aksi</th>
                 </tr>
               </thead>
               <tbody id="cashflowTableBody" class="divide-y divide-slate-800/60 font-medium"></tbody>
@@ -743,6 +756,69 @@
         </button>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 4: CATAT MUTASI KAS DINGIN (PEMBELIAN BARANG / TAMBAHAN DANA) -->
+  <!-- ========================================================================= -->
+  <div id="cashModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto text-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-sm text-white flex items-center gap-2" id="cashModalTitle">
+          <i data-lucide="wallet" class="w-4 h-4 text-emerald-400"></i> Catat Mutasi Kas Dingin
+        </h3>
+        <button onclick="closeCashModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="cashForm" onsubmit="saveCashTransaction(event)" class="space-y-3 text-xs">
+        <!-- Jenis Transaksi -->
+        <div>
+          <label class="block text-slate-400 mb-1.5 font-bold">Jenis Mutasi Kas</label>
+          <div class="grid grid-cols-2 gap-2">
+            <label id="typeKeluarLabel" class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 font-bold cursor-pointer transition-all">
+              <input type="radio" name="cashType" value="keluar" checked onchange="updateCashModalUI()" class="text-rose-600 focus:ring-0">
+              <span>Pengeluaran / Beli Barang</span>
+            </label>
+            <label id="typeMasukLabel" class="flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 font-bold cursor-pointer transition-all">
+              <input type="radio" name="cashType" value="masuk" onchange="updateCashModalUI()" class="text-emerald-600 focus:ring-0">
+              <span>Tambahan Dana / Masuk</span>
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Nominal (Rp)</label>
+          <input type="number" id="cashAmount" min="1" required placeholder="Contoh: 500000" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Keterangan Transaksi</label>
+          <input type="text" id="cashDesc" required placeholder="Contoh: Beli perlengkapan kerja, Tambahan dana keluarga..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Kategori Alokasi</label>
+            <select id="cashCat" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+              <option value="Pembelian Barang">Pembelian Barang</option>
+              <option value="Kebutuhan Pokok">Kebutuhan Pokok</option>
+              <option value="Tambahan Dana">Tambahan Dana</option>
+              <option value="Penghasilan / Gaji">Penghasilan / Gaji</option>
+              <option value="Operasional">Operasional</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Tanggal Transaksi</label>
+            <input type="date" id="cashDate" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" onclick="closeCashModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-300">Batal</button>
+          <button type="submit" id="btnSaveCash" class="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-md shadow-blue-600/30">Simpan Mutasi</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -1248,10 +1324,17 @@
       const totalBungaBiaya = loans.reduce((acc, l) => acc + (l.total_bunga_biaya || l.bunga || 0), 0);
       const progressPct = totalKewajiban > 0 ? ((totalBayar / totalKewajiban) * 100).toFixed(1) : 0;
 
+      // Dynamic Real-time Cash Balance
+      const currentCash = cashflow.reduce((acc, c) => acc + (parseFloat(c.amount) || 0), 0);
+
       document.getElementById('kpiSisaUtang').innerText = formatRupiah(totalSisa);
       document.getElementById('kpiSudahBayar').innerText = formatRupiah(totalBayar);
       document.getElementById('kpiBungaBiaya').innerText = formatRupiah(totalBungaBiaya);
       document.getElementById('kpiProgressPct').innerText = progressPct + '%';
+      document.getElementById('kpiKasDingin').innerText = formatRupiah(currentCash);
+
+      const kpiKasTangan = document.getElementById('kpiKasTangan');
+      if (kpiKasTangan) kpiKasTangan.innerText = formatRupiah(currentCash);
 
       const activeCount = loans.filter(l => l.sisa > 0).length;
       document.getElementById('badgeActiveCount').innerText = activeCount;
@@ -1314,7 +1397,7 @@
                       <i data-lucide="calculator" class="w-3 h-3"></i> Bayar Sebagian
                     </button>
                   ` : `
-                    <button onclick="quickPayLoan(${l.id})" class="px-2 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all" title="Bayar Penuh / 1x Angsuran">
+                    <button onclick="quickPayLoan(${l.id})" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all" title="Bayar Penuh / 1x Angsuran">
                       ${l.tempo === 1 ? 'Lunas' : '1x'}
                     </button>
                   `}
@@ -1340,8 +1423,8 @@
       const tbody = document.getElementById('cashflowTableBody');
       if (!tbody) return;
 
-      tbody.innerHTML = cashflow.map(cf => {
-        const isMasuk = cf.type === 'masuk';
+      tbody.innerHTML = cashflow.map((cf, idx) => {
+        const isMasuk = cf.type === 'masuk' || (parseFloat(cf.amount) > 0);
         return `
           <tr class="hover:bg-slate-800/40 transition-colors">
             <td class="py-3 px-4 font-mono text-slate-400">${cf.date}</td>
@@ -1354,9 +1437,15 @@
             <td class="py-3 px-4 text-right font-mono font-bold ${isMasuk ? 'text-emerald-400' : 'text-rose-400'}">
               ${isMasuk ? '+' : ''}${formatRupiah(cf.amount)}
             </td>
+            <td class="py-3 px-4 text-center">
+              <button onclick="deleteCashflow(${idx})" class="p-1 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-all" title="Hapus Catatan Mutasi Ini">
+                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
           </tr>
         `;
       }).join('');
+      lucide.createIcons();
     }
 
     function setCategoryFilter(cat) {
@@ -1379,7 +1468,7 @@
       if (!loan || loan.sisa <= 0) return;
 
       const payAmount = loan.tempo === 1 ? loan.sisa : loan.angsuran;
-      if (!confirm('Catat pembayaran untuk ' + loan.platform.toUpperCase() + ' (Nominal: ' + formatRupiah(payAmount) + ')?')) return;
+      if (!confirm('Catat pembayaran untuk ' + loan.platform.toUpperCase() + ' (Nominal: ' + formatRupiah(payAmount) + ')? Sisa kas dingin akan otomatis terpotong.')) return;
 
       loan.sudah_di_bayar = (loan.sudah_di_bayar || 0) + 1;
       loan.sudah_dibayar_rp = (loan.sudah_dibayar_rp || 0) + payAmount;
@@ -1565,7 +1654,90 @@
     }
 
     // -------------------------------------------------------------------------
-    // 10. CHARTS INITIALIZATION
+    // 10. MODAL MUTASI KAS DINGIN (PEMBELIAN BARANG / TAMBAHAN DANA)
+    // -------------------------------------------------------------------------
+    function openCashModal(defaultType) {
+      const type = defaultType || 'keluar';
+      document.querySelector('input[name="cashType"][value="' + type + '"]').checked = true;
+      document.getElementById('cashDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('cashAmount').value = '';
+      document.getElementById('cashDesc').value = '';
+      updateCashModalUI();
+      document.getElementById('cashModal').classList.remove('hidden');
+    }
+
+    function closeCashModal() {
+      document.getElementById('cashModal').classList.add('hidden');
+    }
+
+    function updateCashModalUI() {
+      const type = document.querySelector('input[name="cashType"]:checked')?.value || 'keluar';
+      const isKeluar = type === 'keluar';
+
+      const keluarLabel = document.getElementById('typeKeluarLabel');
+      const masukLabel = document.getElementById('typeMasukLabel');
+      const btnSave = document.getElementById('btnSaveCash');
+
+      if (isKeluar) {
+        keluarLabel.className = "flex items-center justify-center gap-2 p-2.5 rounded-xl border border-rose-500/40 bg-rose-500/10 text-rose-300 font-bold cursor-pointer transition-all";
+        masukLabel.className = "flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 font-bold cursor-pointer transition-all";
+        btnSave.innerText = "Simpan Pengeluaran (-)";
+        btnSave.className = "px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 font-bold text-white shadow-md shadow-rose-600/30";
+      } else {
+        masukLabel.className = "flex items-center justify-center gap-2 p-2.5 rounded-xl border border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-bold cursor-pointer transition-all";
+        keluarLabel.className = "flex items-center justify-center gap-2 p-2.5 rounded-xl border border-slate-800 bg-slate-950 text-slate-400 font-bold cursor-pointer transition-all";
+        btnSave.innerText = "Simpan Dana Masuk (+)";
+        btnSave.className = "px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 font-bold text-white shadow-md shadow-emerald-600/30";
+      }
+    }
+
+    async function saveCashTransaction(e) {
+      e.preventDefault();
+      const type = document.querySelector('input[name="cashType"]:checked')?.value || 'keluar';
+      const amountVal = parseFloat(document.getElementById('cashAmount').value) || 0;
+      const descVal = document.getElementById('cashDesc').value.trim();
+      const catVal = document.getElementById('cashCat').value;
+      const dateVal = document.getElementById('cashDate').value || new Date().toISOString().split('T')[0];
+
+      if (amountVal <= 0) {
+        alert('Nominal harus lebih dari 0.');
+        return;
+      }
+
+      const isKeluar = type === 'keluar';
+      const actualAmount = isKeluar ? -Math.abs(amountVal) : Math.abs(amountVal);
+
+      cashflow.unshift({
+        date: dateVal,
+        desc: descVal,
+        cat: catVal,
+        amount: actualAmount,
+        type: type
+      });
+
+      await persistVault();
+      closeCashModal();
+      renderAll();
+
+      alert((isKeluar ? 'Pengeluaran kas ' : 'Tambahan dana masuk ') + formatRupiah(amountVal) + ' berhasil dicatat!');
+    }
+
+    async function deleteCashflow(idx) {
+      const item = cashflow[idx];
+      if (!item) return;
+
+      if (!confirm('Apakah Anda yakin ingin menghapus catatan mutasi kas: "' + item.desc + '" (' + formatRupiah(item.amount) + ')? Saldo kas dingin akan disesuaikan kembali.')) {
+        return;
+      }
+
+      cashflow.splice(idx, 1);
+      await persistVault();
+      renderAll();
+      alert('Catatan mutasi kas berhasil dihapus.');
+    }
+
+    // -------------------------------------------------------------------------
+    // 11. CHARTS INITIALIZATION
     // -------------------------------------------------------------------------
     function initCharts() {
       // 1. Proyeksi Angsuran Chart
@@ -1637,7 +1809,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 11. MODAL TAMBAH & EDIT FASILITAS
+    // 12. MODAL TAMBAH & EDIT FASILITAS
     // -------------------------------------------------------------------------
     function openLoanModal() {
       document.getElementById('modalLoanTitle').innerText = 'Tambah Fasilitas Baru';
@@ -1759,7 +1931,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 12. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
+    // 13. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
     // -------------------------------------------------------------------------
     function openExecutiveReportModal(type) {
       const modal = document.getElementById('execReportModal');
@@ -1787,7 +1959,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 13. INITIAL BOOTSTRAP
+    // 14. INITIAL BOOTSTRAP
     // -------------------------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
