@@ -536,7 +536,7 @@
         <input type="hidden" id="loanId">
         <div>
           <label class="block text-slate-400 mb-1">Nama Platform / Fasilitas</label>
-          <input type="text" id="loanPlatform" required placeholder="Contoh: Nama Bank / Fasilitas Finansial..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          <input type="text" id="loanPlatform" required placeholder="Contoh: Nama Fasilitas / Bank..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
@@ -608,6 +608,136 @@
   </div>
 
   <!-- ========================================================================= -->
+  <!-- MODAL 3: BAYAR SEBAGIAN & KALKULATOR BUNGA KARTU KREDIT (BI 1,75%) -->
+  <!-- ========================================================================= -->
+  <div id="partialPayModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-5 sm:p-7 shadow-2xl space-y-5 my-auto text-slate-200">
+      
+      <!-- Modal Header -->
+      <div class="flex items-start justify-between border-b border-slate-800 pb-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <h3 class="font-extrabold text-sm sm:text-base text-white" id="ppModalTitle">Bayar Sebagian & Bunga Kartu Kredit</h3>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-0.5">Hitung ulang sisa pokok & estimasi bunga resmi Bank Indonesia (1,75%/bln).</p>
+        </div>
+        <button onclick="closePartialPayModal()" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Current Info Card -->
+      <div class="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-4 grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <span class="text-slate-400 text-[11px]">Total Tagihan Saat Ini</span>
+          <div class="text-lg font-black text-rose-400 font-mono mt-0.5" id="ppCurrentDebt">Rp 0</div>
+          <span class="text-[10px] text-slate-500" id="ppDueDateText">Jatuh Tempo: Tgl -</span>
+        </div>
+        <div class="text-right">
+          <span class="text-slate-400 text-[11px]">Min. Pembayaran (5% BI)</span>
+          <div class="text-base font-bold text-amber-400 font-mono mt-0.5" id="ppMinPayment">Rp 0</div>
+          <span class="text-[10px] text-emerald-400 font-medium">Bebas denda macet</span>
+        </div>
+      </div>
+
+      <!-- Payment Input & Presets -->
+      <div class="space-y-2">
+        <label class="block text-xs font-bold text-slate-300">Nominal yang Ingin Anda Bayar Hari Ini (Rp)</label>
+        <div class="relative">
+          <span class="absolute left-3.5 top-2.5 text-xs font-bold text-slate-500">Rp</span>
+          <input type="number" id="ppAmountInput" min="0" step="10000" placeholder="0" oninput="calculatePartialPay()"
+                 class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2.5 text-sm font-bold text-white focus:outline-none focus:border-amber-500 transition-colors">
+        </div>
+        <!-- Quick Preset Chips -->
+        <div class="flex items-center gap-1.5 flex-wrap pt-1 text-[11px]">
+          <span class="text-slate-500 text-[10px]">Pilih Cepat:</span>
+          <button type="button" onclick="setPpPreset('min')" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 font-semibold">Min 5%</button>
+          <button type="button" onclick="setPpPreset(1000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">1 Jt</button>
+          <button type="button" onclick="setPpPreset(2000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">2 Jt</button>
+          <button type="button" onclick="setPpPreset(5000000)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold">5 Jt</button>
+          <button type="button" onclick="setPpPreset('full')" class="px-2.5 py-1 rounded-lg bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-800/60 text-emerald-300 font-semibold">Bayar Lunas</button>
+        </div>
+      </div>
+
+      <!-- Live Calculation Box -->
+      <div class="bg-gradient-to-br from-slate-950 to-slate-900 border border-slate-800 rounded-2xl p-4 space-y-3">
+        <div class="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+          <span>Hasil Perhitungan Ulang</span>
+          <span class="text-emerald-400 flex items-center gap-1"><i data-lucide="check" class="w-3 h-3"></i> Bunga Resmi BI (1,75%)</span>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-slate-800/80">
+          <div>
+            <span class="text-slate-400">Sisa Pokok Setelah Bayar:</span>
+            <div class="font-mono font-bold text-white text-sm mt-0.5" id="ppRemainingPrincipal">Rp 0</div>
+          </div>
+          <div class="text-right">
+            <span class="text-slate-400">Estimasi Bunga (1,75%/bln):</span>
+            <div class="font-mono font-bold text-amber-400 text-sm mt-0.5" id="ppEstimatedInterest">+ Rp 0</div>
+          </div>
+        </div>
+
+        <div class="p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/20 flex items-center justify-between text-xs">
+          <span class="font-medium text-blue-200">Estimasi Tagihan Bulan Depan:</span>
+          <span class="font-mono font-extrabold text-blue-300 text-sm" id="ppNewBillTotal">Rp 0</span>
+        </div>
+      </div>
+
+      <!-- Action Mode Choice (Radio) -->
+      <div class="space-y-2 text-xs">
+        <label class="block font-bold text-slate-300">Pilihan Penerapan ke Portofolio:</label>
+        <div class="space-y-1.5">
+          <label class="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer">
+            <input type="radio" name="ppMode" value="revolving" checked onchange="toggleInstallmentOptions(false)" class="mt-0.5 text-blue-600 focus:ring-0">
+            <div>
+              <div class="font-semibold text-white">Perbarui Tagihan Baru (+ Estimasi Bunga 1,75%)</div>
+              <div class="text-[10px] text-slate-400">Sisa utang diatur menjadi pokok baru ditambah bunga berjalan bulan depan.</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer">
+            <input type="radio" name="ppMode" value="principal_only" onchange="toggleInstallmentOptions(false)" class="mt-0.5 text-blue-600 focus:ring-0">
+            <div>
+              <div class="font-semibold text-white">Kurangi Sisa Pokok Saja</div>
+              <div class="text-[10px] text-slate-400">Hanya mencatat pengurangan pokok murni tanpa menambahkan bunga di muka.</div>
+            </div>
+          </label>
+          <label class="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-slate-700 cursor-pointer">
+            <input type="radio" name="ppMode" value="installment" onchange="toggleInstallmentOptions(true)" class="mt-0.5 text-blue-600 focus:ring-0">
+            <div>
+              <div class="font-semibold text-white">Ubah Sisa Menjadi Cicilan Tetap Bank (Installment)</div>
+              <div class="text-[10px] text-slate-400">Konversi sisa saldo menjadi cicilan tetap bulanan (promo bank ~0,75%/bln).</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- Installment Tenor Selector (Shown when installment selected) -->
+        <div id="ppInstallmentBox" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2 mt-2">
+          <div class="flex items-center justify-between text-[11px] font-bold text-amber-300">
+            <span>Pilih Tenor Cicilan Tetap Bank:</span>
+            <span class="text-[10px] text-slate-400">Bunga ~0,75% flat/bln</span>
+          </div>
+          <div class="grid grid-cols-3 gap-2 text-center" id="ppInstallmentOptionsGrid"></div>
+          <p class="text-[10px] text-amber-200/80 leading-relaxed pt-1">
+            *Tips: Setelah simpan di sini, hubungi Call Center bank atau buka menu Ubah Cicilan di app bank Anda untuk mengaktifkan cicilan resmi.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="border-t border-slate-800 pt-3 flex justify-end gap-2.5">
+        <button type="button" onclick="closePartialPayModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 text-xs">
+          Batal
+        </button>
+        <button type="button" onclick="applyPartialPayment()" class="px-5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 font-bold text-white text-xs shadow-md shadow-amber-600/30 flex items-center gap-1.5">
+          <i data-lucide="check-circle" class="w-4 h-4"></i> Simpan Pembayaran
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
   <!-- CORE JAVASCRIPT: ZERO-KNOWLEDGE CRYPTOGRAPHY + DATA LOGIC -->
   <!-- ========================================================================= -->
   <script>
@@ -627,6 +757,8 @@
     let currentCategory = 'all';
     let projectionChartInstance = null;
     let pillarChartInstance = null;
+    let currentPpLoanId = null;
+    let currentPpSelectedTenor = 12;
 
     // BRUTE FORCE SECURITY CONFIGURATION
     const ATTEMPTS_KEY = 'fintrack_failed_attempts_count';
@@ -1124,12 +1256,15 @@
 
       tbody.innerHTML = filtered.map((l, idx) => {
         const isLunas = l.sisa === 0;
+        const isCreditCard = l.platform.toLowerCase().startsWith('kk');
+
         return `
           <tr class="hover:bg-slate-800/40 transition-colors ${isLunas ? 'opacity-40 bg-emerald-950/10' : ''}">
             <td class="py-3 px-4 text-slate-500 font-mono">${idx + 1}</td>
             <td class="py-3 px-4 font-bold text-white uppercase flex items-center gap-2">
               <span>${l.platform}</span>
               ${isLunas ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold">LUNAS</span>' : ''}
+              ${isCreditCard && !isLunas ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-bold">KARTU KREDIT</span>' : ''}
             </td>
             <td class="py-3 px-4 text-slate-300">
               <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px]">Tgl ${l.jatuh_tempo}</span>
@@ -1150,14 +1285,20 @@
             </td>
             <td class="py-3 px-4 text-center">
               ${!isLunas ? `
-                <button onclick="quickPayLoan(${l.id})" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all">
-                  Bayar 1x
-                </button>
+                <div class="flex items-center justify-center gap-1.5">
+                  <button onclick="openPartialPayModal(${l.id})" class="px-2.5 py-1 rounded-lg ${isCreditCard ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm shadow-amber-600/30' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} text-[11px] font-bold transition-all flex items-center gap-1">
+                    <i data-lucide="calculator" class="w-3 h-3"></i> Bayar Sebagian
+                  </button>
+                  <button onclick="quickPayLoan(${l.id})" class="px-2 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all" title="Bayar Penuh / 1x Angsuran">
+                    ${l.tempo === 1 ? 'Lunas' : '1x'}
+                  </button>
+                </div>
               ` : '<span class="text-slate-600 text-[11px]">-</span>'}
             </td>
           </tr>
         `;
       }).join('');
+      lucide.createIcons();
     }
 
     function renderCashflowTable() {
@@ -1202,18 +1343,19 @@
       const loan = loans.find(l => l.id === id);
       if (!loan || loan.sisa <= 0) return;
 
-      if (!confirm('Catat pembayaran 1 bulan untuk ' + loan.platform.toUpperCase() + ' (Nominal: ' + formatRupiah(loan.angsuran) + ')?')) return;
+      const payAmount = loan.tempo === 1 ? loan.sisa : loan.angsuran;
+      if (!confirm('Catat pembayaran untuk ' + loan.platform.toUpperCase() + ' (Nominal: ' + formatRupiah(payAmount) + ')?')) return;
 
       loan.sudah_di_bayar = (loan.sudah_di_bayar || 0) + 1;
-      loan.sudah_dibayar_rp = (loan.sudah_dibayar_rp || 0) + loan.angsuran;
-      loan.sisa = Math.max(0, loan.sisa - loan.angsuran);
-      loan.sisa_tempo = Math.max(0, loan.sisa_tempo - 1);
+      loan.sudah_dibayar_rp = (loan.sudah_dibayar_rp || 0) + payAmount;
+      loan.sisa = Math.max(0, loan.sisa - payAmount);
+      loan.sisa_tempo = Math.max(0, (loan.sisa_tempo || 1) - 1);
 
       cashflow.unshift({
         date: new Date().toISOString().split('T')[0],
-        desc: 'Pembayaran Angsuran: ' + loan.platform,
-        cat: 'Cicilan Berjalan',
-        amount: -loan.angsuran,
+        desc: 'Pembayaran: ' + loan.platform.toUpperCase(),
+        cat: loan.platform.toLowerCase().startsWith('kk') ? 'Kartu Kredit' : 'Cicilan Berjalan',
+        amount: -payAmount,
         type: 'keluar'
       });
 
@@ -1223,7 +1365,172 @@
     }
 
     // -------------------------------------------------------------------------
-    // 9. CHARTS INITIALIZATION
+    // 9. PARTIAL PAYMENT & CC INTEREST SIMULATOR (MODAL 3)
+    // -------------------------------------------------------------------------
+    function openPartialPayModal(loanId) {
+      const loan = loans.find(l => l.id === loanId);
+      if (!loan) return;
+      currentPpLoanId = loanId;
+
+      document.getElementById('ppModalTitle').innerText = 'Bayar Sebagian & Bunga: ' + loan.platform.toUpperCase();
+      document.getElementById('ppCurrentDebt').innerText = formatRupiah(loan.sisa);
+      document.getElementById('ppDueDateText').innerText = 'Jatuh Tempo: Tgl ' + loan.jatuh_tempo;
+
+      // Minimum payment BI: 5% (min 50.000)
+      const minPayment = Math.max(50000, Math.round(loan.sisa * 0.05));
+      document.getElementById('ppMinPayment').innerText = formatRupiah(minPayment);
+
+      document.getElementById('ppAmountInput').value = '';
+      document.getElementById('ppInstallmentBox').classList.add('hidden');
+      const revRadio = document.querySelector('input[name="ppMode"][value="revolving"]');
+      if (revRadio) revRadio.checked = true;
+
+      calculatePartialPay();
+      document.getElementById('partialPayModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closePartialPayModal() {
+      document.getElementById('partialPayModal').classList.add('hidden');
+    }
+
+    function setPpPreset(val) {
+      const loan = loans.find(l => l.id === currentPpLoanId);
+      if (!loan) return;
+
+      if (val === 'min') {
+        const minPayment = Math.max(50000, Math.round(loan.sisa * 0.05));
+        document.getElementById('ppAmountInput').value = minPayment;
+      } else if (val === 'full') {
+        document.getElementById('ppAmountInput').value = loan.sisa;
+      } else {
+        document.getElementById('ppAmountInput').value = Math.min(loan.sisa, val);
+      }
+      calculatePartialPay();
+    }
+
+    function calculatePartialPay() {
+      const loan = loans.find(l => l.id === currentPpLoanId);
+      if (!loan) return;
+
+      const currentDebt = loan.sisa;
+      const payInput = parseFloat(document.getElementById('ppAmountInput').value) || 0;
+      const validPay = Math.max(0, Math.min(currentDebt, payInput));
+
+      const remainingPrincipal = Math.max(0, currentDebt - validPay);
+      
+      // Bank Indonesia regulated credit card interest rate: max 1.75% per month
+      const estimatedInterest = Math.round(remainingPrincipal * 0.0175);
+      const newBillTotal = remainingPrincipal + estimatedInterest;
+
+      document.getElementById('ppRemainingPrincipal').innerText = formatRupiah(remainingPrincipal);
+      document.getElementById('ppEstimatedInterest').innerText = '+ ' + formatRupiah(estimatedInterest);
+      document.getElementById('ppNewBillTotal').innerText = formatRupiah(newBillTotal);
+
+      // Build installment options
+      const grid = document.getElementById('ppInstallmentOptionsGrid');
+      if (grid) {
+        const tenors = [3, 6, 12];
+        grid.innerHTML = tenors.map(t => {
+          const flatRate = 0.0075; // ~0.75% / month
+          const totalInterest = remainingPrincipal * flatRate * t;
+          const installmentPerMonth = Math.round((remainingPrincipal + totalInterest) / t);
+          const isSelected = currentPpSelectedTenor === t;
+
+          return `
+            <button type="button" onclick="selectPpTenor(${t})" class="p-2 rounded-xl border text-xs font-bold transition-all ${
+              isSelected 
+                ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md' 
+                : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
+            }">
+              <div class="text-[10px] opacity-80">${t} Bulan</div>
+              <div class="text-[11px] font-mono mt-0.5">${formatRupiah(installmentPerMonth)}/bln</div>
+            </button>
+          `;
+        }).join('');
+      }
+    }
+
+    function selectPpTenor(t) {
+      currentPpSelectedTenor = t;
+      calculatePartialPay();
+    }
+
+    function toggleInstallmentOptions(show) {
+      const box = document.getElementById('ppInstallmentBox');
+      if (box) {
+        if (show) box.classList.remove('hidden');
+        else box.classList.add('hidden');
+      }
+    }
+
+    async function applyPartialPayment() {
+      const loan = loans.find(l => l.id === currentPpLoanId);
+      if (!loan) return;
+
+      const payAmount = parseFloat(document.getElementById('ppAmountInput').value) || 0;
+      if (payAmount <= 0) {
+        alert('Silakan masukkan nominal pembayaran yang valid (lebih dari Rp 0).');
+        return;
+      }
+
+      const selectedMode = document.querySelector('input[name="ppMode"]:checked')?.value || 'revolving';
+      const remainingPrincipal = Math.max(0, loan.sisa - payAmount);
+      const estimatedInterest = Math.round(remainingPrincipal * 0.0175);
+
+      // 1. Catat ke Arus Kas
+      cashflow.unshift({
+        date: new Date().toISOString().split('T')[0],
+        desc: 'Bayar Sebagian Kartu Kredit: ' + loan.platform.toUpperCase(),
+        cat: 'Kartu Kredit',
+        amount: -payAmount,
+        type: 'keluar'
+      });
+
+      // 2. Perbarui data pinjaman
+      loan.sudah_dibayar_rp = (loan.sudah_dibayar_rp || 0) + payAmount;
+
+      if (selectedMode === 'revolving') {
+        loan.sisa = remainingPrincipal + (remainingPrincipal > 0 ? estimatedInterest : 0);
+        loan.bunga = (loan.bunga || 0) + estimatedInterest;
+        loan.total_bunga_biaya = (loan.total_bunga_biaya || 0) + estimatedInterest;
+        loan.angsuran = loan.sisa;
+      } else if (selectedMode === 'principal_only') {
+        loan.sisa = remainingPrincipal;
+        loan.angsuran = remainingPrincipal;
+      } else if (selectedMode === 'installment') {
+        const tenor = currentPpSelectedTenor || 12;
+        const flatRate = 0.0075;
+        const totalInterest = Math.round(remainingPrincipal * flatRate * tenor);
+        const totalNewDebt = remainingPrincipal + totalInterest;
+        const monthlyInstallment = Math.round(totalNewDebt / tenor);
+
+        loan.tempo = tenor;
+        loan.sisa_tempo = tenor;
+        loan.sudah_di_bayar = 0;
+        loan.angsuran = monthlyInstallment;
+        loan.sisa = totalNewDebt;
+        loan.total = totalNewDebt;
+        loan.bunga = (loan.bunga || 0) + totalInterest;
+        loan.total_bunga_biaya = (loan.total_bunga_biaya || 0) + totalInterest;
+        if (!loan.platform.includes('(Cicilan)')) {
+          loan.platform = loan.platform + ' (Cicilan ' + tenor + 'x)';
+        }
+      }
+
+      // 3. Simpan terenkripsi ke localStorage
+      await persistVault();
+
+      // 4. Update UI
+      closePartialPayModal();
+      renderAll();
+      initCharts();
+
+      alert('Pembayaran sebesar ' + formatRupiah(payAmount) + ' berhasil dicatat dan portofolio telah dihitung ulang secara aman!');
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. CHARTS INITIALIZATION
     // -------------------------------------------------------------------------
     function initCharts() {
       // 1. Proyeksi Angsuran Chart
@@ -1295,7 +1602,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 10. MODAL UTANG BARU
+    // 11. MODAL UTANG BARU
     // -------------------------------------------------------------------------
     function openLoanModal() {
       document.getElementById('loanModal').classList.remove('hidden');
@@ -1341,7 +1648,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 11. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
+    // 12. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
     // -------------------------------------------------------------------------
     function openExecutiveReportModal(type) {
       const modal = document.getElementById('execReportModal');
@@ -1369,7 +1676,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 12. INITIAL BOOTSTRAP
+    // 13. INITIAL BOOTSTRAP
     // -------------------------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
