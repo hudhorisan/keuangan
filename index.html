@@ -1,0 +1,1381 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinTrack - Manajemen Portofolio Finansial (Zero-Knowledge AES-256 Encrypted)</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- SheetJS (XLSX) for client-side Excel export -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #0f172a;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .shake {
+      animation: shakeAnim 0.4s ease-in-out;
+    }
+    @keyframes shakeAnim {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      #printReportSection, #printReportSection * {
+        visibility: visible;
+      }
+      #printReportSection {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        background: white !important;
+        color: black !important;
+      }
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen antialiased flex flex-col selection:bg-blue-600 selection:text-white">
+
+  <!-- ========================================================================= -->
+  <!-- SECURITY LOCK SCREEN (ZERO-KNOWLEDGE AES-256 + EXPONENTIAL ANTI-BRUTE-FORCE) -->
+  <!-- ========================================================================= -->
+  <div id="lockScreen" class="fixed inset-0 bg-slate-950/98 backdrop-blur-2xl z-50 flex items-center justify-center p-4">
+    <div id="lockCard" class="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 lg:p-8 shadow-2xl text-center space-y-6 relative overflow-hidden">
+      <div class="absolute -right-8 -top-8 w-32 h-32 bg-blue-500/10 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="absolute -left-8 -bottom-8 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+      <!-- Icon -->
+      <div id="lockIconContainer" class="mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20 transition-all">
+        <i data-lucide="shield-lock" id="lockIcon" class="w-8 h-8 text-white"></i>
+      </div>
+
+      <!-- Titles -->
+      <div>
+        <h2 class="text-xl font-extrabold text-white tracking-tight" id="lockTitle">FinTrack Secure Vault</h2>
+        <p class="text-xs text-slate-400 mt-1" id="lockSubtitle">Masukkan 6 digit PIN untuk mendekripsi brankas data Anda.</p>
+      </div>
+
+      <!-- Lockout Notice Banner (Hidden by default, shown during freeze) -->
+      <div id="lockoutBanner" class="hidden bg-rose-500/15 border border-rose-500/40 rounded-2xl p-3.5 space-y-1 text-center transition-all animate-pulse">
+        <div class="flex items-center justify-center gap-1.5 text-xs font-bold text-rose-400">
+          <i data-lucide="alert-octagon" class="w-4 h-4"></i> Akses Dibekukan (Anti Brute Force)
+        </div>
+        <p id="lockoutTimerText" class="font-mono text-sm font-black text-rose-200">Silakan tunggu 00:30 detik</p>
+        <p class="text-[10px] text-rose-400">Terlalu banyak percobaan PIN salah. Sistem dikunci sementara.</p>
+      </div>
+
+      <!-- PIN Input Area -->
+      <div id="pinInputArea" class="space-y-3">
+        <!-- Display Dots -->
+        <div class="flex items-center justify-center gap-3 py-2" id="pinDots">
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all"></span>
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all"></span>
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all"></span>
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all"></span>
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all"></span>
+          <span class="w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all"></span>
+        </div>
+
+        <!-- Hidden input for keyboard typing -->
+        <input type="password" id="pinInput" maxlength="6" autofocus inputmode="numeric" 
+               class="opacity-0 absolute -z-10" oninput="handlePinInput(this.value)">
+
+        <div id="lockError" class="text-xs text-rose-400 font-semibold min-h-[18px]"></div>
+      </div>
+
+      <!-- Number Keypad Grid -->
+      <div id="keypadGrid" class="grid grid-cols-3 gap-2.5 max-w-[260px] mx-auto select-none">
+        <button onclick="pressKey('1')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">1</button>
+        <button onclick="pressKey('2')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">2</button>
+        <button onclick="pressKey('3')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">3</button>
+        <button onclick="pressKey('4')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">4</button>
+        <button onclick="pressKey('5')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">5</button>
+        <button onclick="pressKey('6')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">6</button>
+        <button onclick="pressKey('7')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">7</button>
+        <button onclick="pressKey('8')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">8</button>
+        <button onclick="pressKey('9')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">9</button>
+        <button onclick="clearPin()" class="keypad-btn h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 text-slate-400 font-semibold text-xs transition-all active:scale-95">Clear</button>
+        <button onclick="pressKey('0')" class="keypad-btn h-12 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-lg transition-all active:scale-95 shadow-sm">0</button>
+        <button onclick="backspacePin()" class="keypad-btn h-12 rounded-2xl bg-slate-800/40 hover:bg-slate-800 text-slate-400 flex items-center justify-center transition-all active:scale-95">
+          <i data-lucide="delete" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Action Button / Security Info -->
+      <div class="pt-2 text-xs space-y-2">
+        <button onclick="submitPin()" id="btnSubmitPin" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white transition-all shadow-md shadow-blue-600/30 flex items-center justify-center gap-2">
+          <span id="btnSubmitText">Dekripsi & Buka Portofolio</span>
+        </button>
+        <div class="flex items-center justify-center gap-1.5 text-[11px] text-emerald-400 pt-1">
+          <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+          <span>Zero-Knowledge AES-256 + Anti Brute Force Aktif</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN APP CONTAINER (HIDDEN UNTIL DECRYPTED) -->
+  <!-- ========================================================================= -->
+  <div id="appContainer" class="flex-1 flex flex-col opacity-0 pointer-events-none transition-opacity duration-300">
+
+    <!-- Top Alert Banner -->
+    <div class="bg-gradient-to-r from-blue-900/60 via-indigo-900/40 to-slate-900 border-b border-blue-500/30 px-4 py-2.5 text-xs text-blue-200">
+      <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div class="flex items-center gap-2 overflow-hidden text-ellipsis whitespace-nowrap">
+          <span class="flex h-2 w-2 rounded-full bg-emerald-400 animate-ping"></span>
+          <span class="font-bold text-white uppercase tracking-wider text-[10px] bg-blue-500/30 px-2 py-0.5 rounded-full border border-blue-400/30">Terproteksi</span>
+          <span class="font-medium text-slate-200" id="topBannerText">Memuat data brankas terenkripsi...</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <button onclick="lockApp()" class="flex items-center gap-1 text-[11px] font-semibold text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 px-2.5 py-1 rounded-lg border border-slate-700 transition-all">
+            <i data-lucide="lock" class="w-3 h-3 text-amber-400"></i> Kunci Layar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="border-b border-slate-800 bg-slate-900/70 backdrop-blur sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        
+        <!-- Logo & Title -->
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <i data-lucide="wallet" class="w-5 h-5 text-white"></i>
+          </div>
+          <div>
+            <h1 class="font-extrabold text-base sm:text-lg tracking-tight text-white flex items-center gap-1.5">
+              FinTrack <span class="text-[10px] uppercase font-bold px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">AES-256</span>
+            </h1>
+            <p class="text-[11px] text-slate-400 hidden sm:block">Dashboard Portofolio Finansial Terenkripsi</p>
+          </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <nav class="hidden md:flex items-center gap-1 bg-slate-950/60 p-1 rounded-xl border border-slate-800/80">
+          <button onclick="switchTab('overview')" id="tab-btn-overview" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-blue-600 text-white shadow-sm">
+            <i data-lucide="layout-dashboard" class="w-3.5 h-3.5"></i> Ringkasan Utama
+          </button>
+          <button onclick="switchTab('loans')" id="tab-btn-loans" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-slate-800 text-slate-400 hover:text-white">
+            <i data-lucide="list-ordered" class="w-3.5 h-3.5"></i> Daftar Utang <span id="badgeActiveCount" class="text-[10px] px-1.5 py-0.2 rounded-full bg-slate-700 text-slate-200 ml-1">33</span>
+          </button>
+          <button onclick="switchTab('cashflow')" id="tab-btn-cashflow" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-slate-800 text-slate-400 hover:text-white">
+            <i data-lucide="arrow-left-right" class="w-3.5 h-3.5"></i> Arus Kas Tgl 25
+          </button>
+          <button onclick="switchTab('parent')" id="tab-btn-parent" class="tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 bg-amber-500/10 text-amber-300 border border-amber-500/20 hover:bg-amber-500/20">
+            <i data-lucide="heart-handshake" class="w-3.5 h-3.5"></i> Mode Orang Tua
+          </button>
+        </nav>
+
+        <!-- Right Action Controls -->
+        <div class="flex items-center gap-2">
+          <!-- Privacy Mode Toggle -->
+          <button onclick="togglePrivacyMode()" id="btnPrivacyToggle" title="Sembunyikan/Tampilkan Nominal" 
+                  class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60">
+            <i data-lucide="eye" id="privacyIcon" class="w-4 h-4"></i>
+          </button>
+
+          <!-- Add Loan -->
+          <button onclick="openLoanModal()" class="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white transition-all shadow-md shadow-blue-600/20">
+            <i data-lucide="plus-circle" class="w-4 h-4"></i>
+            <span class="hidden sm:inline">Tambah Utang</span>
+          </button>
+
+          <!-- Settings & Backup Dropdown -->
+          <div class="relative group">
+            <button class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors border border-slate-700/60 flex items-center gap-1">
+              <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i>
+              <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+            </button>
+            <div class="absolute right-0 mt-1.5 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 hidden group-hover:block z-50">
+              <button onclick="promptChangePin()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                <i data-lucide="key" class="w-3.5 h-3.5 text-amber-400"></i> Ganti PIN Vault
+              </button>
+              <button onclick="exportEncryptedVault()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-400"></i> Unduh Vault Terenkripsi
+              </button>
+              <button onclick="exportExcel()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-blue-400"></i> Ekspor Excel (.xlsx)
+              </button>
+              <div class="border-t border-slate-800 my-1"></div>
+              <button onclick="lockApp()" class="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2">
+                <i data-lucide="log-out" class="w-3.5 h-3.5"></i> Kunci Layar
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mobile Tab Bar -->
+      <div class="md:hidden flex items-center justify-around border-t border-slate-800/80 px-2 py-1.5 bg-slate-950/80 text-[11px] font-bold">
+        <button onclick="switchTab('overview')" class="flex flex-col items-center gap-0.5 text-blue-400">
+          <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Ringkasan
+        </button>
+        <button onclick="switchTab('loans')" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-white">
+          <i data-lucide="list-ordered" class="w-4 h-4"></i> Utang (<span id="mobBadgeCount">33</span>)
+        </button>
+        <button onclick="switchTab('cashflow')" class="flex flex-col items-center gap-0.5 text-slate-400 hover:text-white">
+          <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Arus Kas
+        </button>
+        <button onclick="switchTab('parent')" class="flex flex-col items-center gap-0.5 text-amber-400">
+          <i data-lucide="heart-handshake" class="w-4 h-4"></i> Mode Ortu
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Body -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full space-y-6 flex-1">
+
+      <!-- ===================================================================== -->
+      <!-- TAB 1: OVERVIEW -->
+      <!-- ===================================================================== -->
+      <div id="tab-overview" class="tab-content space-y-6">
+
+        <!-- Top 4 KPI Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- KPI 1: Sisa Utang Bersih -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-semibold">
+              <span>Sisa Utang Bersih</span>
+              <span class="p-1.5 rounded-lg bg-rose-500/10 text-rose-400"><i data-lucide="trending-down" class="w-4 h-4"></i></span>
+            </div>
+            <div class="mt-2 text-xl lg:text-3xl font-extrabold text-white tracking-tight money" id="kpiSisaUtang">Rp 0</div>
+            <div class="mt-2 text-[11px] text-slate-400 flex items-center gap-1" id="kpiSisaSubtitle">
+              <span id="mandiriSubtitle"></span>
+            </div>
+          </div>
+
+          <!-- KPI 2: Total Telah Terbayar -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-semibold">
+              <span>Total Telah Terbayar</span>
+              <span class="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-400"><i data-lucide="check-circle" class="w-4 h-4"></i></span>
+            </div>
+            <div class="mt-2 text-xl lg:text-3xl font-extrabold text-emerald-400 tracking-tight money" id="kpiSudahBayar">Rp 0</div>
+            <div class="mt-2 text-[11px] text-slate-400 flex items-center gap-1">
+              <span class="text-emerald-400 font-bold" id="kpiProgressPct">0%</span> dari total kewajiban awal
+            </div>
+          </div>
+
+          <!-- KPI 3: Beban Bunga & Biaya Total -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-semibold">
+              <span>Total Beban Bunga & Biaya</span>
+              <span class="p-1.5 rounded-lg bg-amber-500/10 text-amber-400"><i data-lucide="pie-chart" class="w-4 h-4"></i></span>
+            </div>
+            <div class="mt-2 text-xl lg:text-3xl font-extrabold text-amber-300 tracking-tight money" id="kpiBungaBiaya">Rp 0</div>
+            <div class="mt-2 text-[11px] text-slate-400">
+              Biaya modal total seluruh fasilitas
+            </div>
+          </div>
+
+          <!-- KPI 4: Sisa Kas Likuiditas Dingin -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+            <div class="flex items-center justify-between text-slate-400 text-xs font-semibold">
+              <span>Sisa Kas Dingin (Tgl 25)</span>
+              <span class="p-1.5 rounded-lg bg-blue-500/10 text-blue-400"><i data-lucide="coins" class="w-4 h-4"></i></span>
+            </div>
+            <div class="mt-2 text-xl lg:text-3xl font-extrabold text-blue-400 tracking-tight money" id="kpiKasDingin">Rp 8.471.744</div>
+            <div class="mt-2 text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+              <i data-lucide="shield" class="w-3 h-3"></i> Siap untuk buffer awal November
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Chart 1: Proyeksi Beban Bulanan -->
+          <div class="lg:col-span-2 bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                  <i data-lucide="bar-chart-3" class="w-4 h-4 text-blue-400"></i> Proyeksi Angsuran Bulanan (Nov 2026 - Des 2027)
+                </h3>
+                <p class="text-xs text-slate-400">Grafik beban bulanan menunjukkan penurunan drastis saat fintech lunas</p>
+              </div>
+            </div>
+            <div class="h-64 sm:h-72 w-full">
+              <canvas id="projectionChart"></canvas>
+            </div>
+          </div>
+
+          <!-- Chart 2: Komposisi 3 Pilar Portofolio -->
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4 flex flex-col justify-between">
+            <div>
+              <h3 class="font-bold text-sm text-white flex items-center gap-2">
+                <i data-lucide="pie-chart" class="w-4 h-4 text-indigo-400"></i> Komposisi 3 Pilar Utang
+              </h3>
+              <p class="text-xs text-slate-400">Distribusi risiko sisa utang saat ini</p>
+            </div>
+            <div class="h-52 w-full flex items-center justify-center">
+              <canvas id="pillarChart"></canvas>
+            </div>
+            <div class="space-y-1.5 text-xs text-slate-300 pt-2 border-t border-slate-800">
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-1.5 text-slate-400">
+                  <span class="w-3 h-3 rounded-full bg-blue-500"></span> Bank Mandiri (KSM)
+                </span>
+                <span class="font-bold text-white money" id="mandiriShare">Memuat...</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-1.5 text-slate-400">
+                  <span class="w-3 h-3 rounded-full bg-amber-500"></span> Kartu Kredit Resmi
+                </span>
+                <span class="font-bold text-white money" id="kkShare">Memuat...</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="flex items-center gap-1.5 text-slate-400">
+                  <span class="w-3 h-3 rounded-full bg-rose-500"></span> Fintech & Paylater HP
+                </span>
+                <span class="font-bold text-white money" id="fintechShare">Memuat...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 2: DAFTAR UTANG & MANAJEMEN -->
+      <!-- ===================================================================== -->
+      <div id="tab-loans" class="tab-content hidden space-y-4">
+        
+        <!-- Controls & Filter Toolbar -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg flex flex-col md:flex-row items-center justify-between gap-4">
+          <!-- Search Box -->
+          <div class="relative w-full md:w-72">
+            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-500"></i>
+            <input type="text" id="searchInput" oninput="filterLoansTable()" placeholder="Cari platform, tanggal, nominal..." 
+                   class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors">
+          </div>
+
+          <!-- Category Chips -->
+          <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 custom-scroll">
+            <button onclick="setCategoryFilter('all')" class="cat-chip active px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white transition-all whitespace-nowrap">Semua</button>
+            <button onclick="setCategoryFilter('mandiri')" class="cat-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition-all whitespace-nowrap">Bank Mandiri</button>
+            <button onclick="setCategoryFilter('kk')" class="cat-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition-all whitespace-nowrap">Kartu Kredit</button>
+            <button onclick="setCategoryFilter('fintech1m')" class="cat-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition-all whitespace-nowrap">Fintech 1 Bulan</button>
+            <button onclick="setCategoryFilter('fintech_cicil')" class="cat-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 text-slate-400 hover:text-white transition-all whitespace-nowrap">Fintech Cicilan</button>
+            <button onclick="setCategoryFilter('lunas')" class="cat-chip px-3 py-1.5 rounded-lg text-xs font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50 hover:bg-emerald-900/60 transition-all whitespace-nowrap">Sudah Lunas</button>
+          </div>
+        </div>
+
+        <!-- Loans Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
+          <div class="overflow-x-auto custom-scroll">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-950/70 border-b border-slate-800 text-slate-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="py-3 px-4">#</th>
+                  <th class="py-3 px-4">Platform & Fasilitas</th>
+                  <th class="py-3 px-4">Jatuh Tempo</th>
+                  <th class="py-3 px-4 text-right">Pengajuan Pokok</th>
+                  <th class="py-3 px-4 text-right">Angsuran / Bln</th>
+                  <th class="py-3 px-4 text-center">Tenor Sisa</th>
+                  <th class="py-3 px-4 text-right">Sisa Utang</th>
+                  <th class="py-3 px-4 text-center">Status</th>
+                  <th class="py-3 px-4 text-center">Aksi Cepat</th>
+                </tr>
+              </thead>
+              <tbody id="loansTableBody" class="divide-y divide-slate-800/60 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 3: ARUS KAS REALISASI TGL 25 -->
+      <!-- ===================================================================== -->
+      <div id="tab-cashflow" class="tab-content hidden space-y-6">
+        
+        <!-- Summary Box -->
+        <div class="bg-gradient-to-r from-blue-950/50 via-slate-900 to-indigo-950/50 border border-blue-500/30 rounded-2xl p-6 shadow-xl space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 class="text-base font-extrabold text-white flex items-center gap-2">
+                <i data-lucide="check-check" class="w-5 h-5 text-emerald-400"></i> Rekapitulasi Pembayaran Tgl 25 Oktober 2026
+              </h3>
+              <p class="text-xs text-slate-300 mt-1">Eksekusi likuiditas modal berjalan aman dan tuntas.</p>
+            </div>
+            <div class="text-right">
+              <div class="text-xs text-slate-400">Sisa Kas Tersedia di Tangan</div>
+              <div class="text-2xl font-black text-emerald-400 tracking-tight money" id="kpiKasTangan">Rp 8.471.744</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cashflow Transaction Table -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
+          <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+            <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400">Riwayat Transaksi Masuk & Keluar</h4>
+          </div>
+          <div class="overflow-x-auto custom-scroll">
+            <table class="w-full text-left text-xs whitespace-nowrap">
+              <thead class="bg-slate-950/70 border-b border-slate-800 text-slate-400 uppercase font-semibold text-[10px]">
+                <tr>
+                  <th class="py-3 px-4">Tanggal</th>
+                  <th class="py-3 px-4">Keterangan Transaksi</th>
+                  <th class="py-3 px-4">Kategori Alokasi</th>
+                  <th class="py-3 px-4 text-right">Nominal Arus Kas</th>
+                </tr>
+              </thead>
+              <tbody id="cashflowTableBody" class="divide-y divide-slate-800/60 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===================================================================== -->
+      <!-- TAB 4: MODE ORANG TUA (DOKUMEN RAMAH & SOPAN) -->
+      <!-- ===================================================================== -->
+      <div id="tab-parent" class="tab-content hidden space-y-6">
+        
+        <!-- Header Banner Ortu -->
+        <div class="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-6 shadow-xl space-y-3">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+              <i data-lucide="shield-check" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-extrabold text-amber-200">Mode Tampilan Santun untuk Orang Tua</h3>
+              <p class="text-xs text-amber-400/90 mt-0.5">Disederhanakan menjadi 3 kelompok besar agar mudah dipahami tanpa membingungkan.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 Kelompok Besar (Dynamically Rendered from Vault) -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="parentModeCardsContainer"></div>
+
+        <!-- Narasi Realisasi Tgl 25 -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-2">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+            <i data-lucide="info" class="w-4 h-4 text-blue-400"></i> Penjelasan Arus Kas untuk Orang Tua
+          </h4>
+          <div class="text-xs text-slate-300 leading-relaxed space-y-2" id="parentModeNarrative"></div>
+        </div>
+
+        <!-- In-App Executive Report Buttons -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center shrink-0">
+              <i data-lucide="file-text" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1">
+              <h4 class="font-bold text-sm text-white">Laporan Eksekutif Ortu (Versi Lengkap)</h4>
+              <p class="text-xs text-slate-400 mt-1">Mencakup Mandiri KSM, Kartu Kredit, Pinjol, dan Rencana Arus Kas.</p>
+              <div class="mt-3 flex items-center gap-2">
+                <button onclick="openExecutiveReportModal('lengkap')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-xs font-bold text-white inline-flex items-center gap-1.5 shadow-sm">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i> Buka Dokumen Interaktif
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg flex items-start gap-4">
+            <div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center shrink-0">
+              <i data-lucide="smartphone" class="w-6 h-6"></i>
+            </div>
+            <div class="flex-1">
+              <h4 class="font-bold text-sm text-white">Laporan Eksekutif Ortu (Khusus Pinjol Saja)</h4>
+              <p class="text-xs text-slate-400 mt-1">Fokus khusus pada pembersihan 29 fasilitas pinjaman aplikasi HP & kartu kredit.</p>
+              <div class="mt-3 flex items-center gap-2">
+                <button onclick="openExecutiveReportModal('pinjol')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white inline-flex items-center gap-1.5 shadow-sm">
+                  <i data-lucide="eye" class="w-3.5 h-3.5"></i> Buka Dokumen Interaktif
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-slate-900 bg-slate-950 py-4 text-center text-xs text-slate-600">
+      <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>FinTrack Vault &bull; Standar Enkripsi AES-256 Kriptografi Klien</div>
+        <div class="text-[11px] text-slate-500">Kunci data tersimpan hanya di memori Anda. Bebas bypass & bebas sadap.</div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 1: TAMBAH / EDIT UTANG -->
+  <!-- ========================================================================= -->
+  <div id="loanModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-sm text-white" id="modalLoanTitle">Tambah Fasilitas Baru</h3>
+        <button onclick="closeLoanModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
+      </div>
+      <form id="loanForm" onsubmit="saveLoan(event)" class="space-y-3 text-xs">
+        <input type="hidden" id="loanId">
+        <div>
+          <label class="block text-slate-400 mb-1">Nama Platform / Fasilitas</label>
+          <input type="text" id="loanPlatform" required placeholder="Contoh: Nama Bank / Fasilitas Finansial..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Tanggal Jatuh Tempo</label>
+            <input type="number" id="loanTempoDate" min="1" max="31" required placeholder="1 - 31" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Pengajuan Pokok (Rp)</label>
+            <input type="number" id="loanPengajuan" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Angsuran per Bulan (Rp)</label>
+            <input type="number" id="loanAngsuran" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Total Tenor (Bulan)</label>
+            <input type="number" id="loanTenorTotal" min="1" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-slate-400 mb-1">Sudah Dibayar (Bulan)</label>
+            <input type="number" id="loanSudahBayarBulan" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Total Nominal Lunas (Rp)</label>
+            <input type="number" id="loanSudahBayar" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          </div>
+        </div>
+        <div class="pt-3 flex justify-end gap-2">
+          <button type="button" onclick="closeLoanModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-300">Batal</button>
+          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-md shadow-blue-600/30">Simpan Data</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- MODAL 2: IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS -->
+  <!-- ========================================================================= -->
+  <div id="execReportModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-3xl w-full p-6 sm:p-8 shadow-2xl space-y-6 my-auto text-slate-200">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div>
+          <h3 class="font-extrabold text-base text-white flex items-center gap-2" id="execReportTitle">Dokumen Eksekutif</h3>
+          <p class="text-xs text-slate-400 mt-0.5">Diformat dengan bahasa santun, transparan, dan mudah dipahami orang tua.</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-bold text-white flex items-center gap-1.5">
+            <i data-lucide="printer" class="w-3.5 h-3.5"></i> Cetak Dokumen
+          </button>
+          <button onclick="closeExecutiveReportModal()" class="text-slate-400 hover:text-white p-1">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <div id="execReportContent" class="space-y-4 text-xs leading-relaxed max-h-[65vh] overflow-y-auto custom-scroll pr-2">
+        <!-- Injected dynamically from decrypted vault -->
+      </div>
+
+      <div class="border-t border-slate-800 pt-3 flex justify-between items-center text-[11px] text-slate-500">
+        <span>FinTrack Laporan Eksekutif Terenkripsi</span>
+        <button onclick="closeExecutiveReportModal()" class="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- CORE JAVASCRIPT: ZERO-KNOWLEDGE CRYPTOGRAPHY + DATA LOGIC -->
+  <!-- ========================================================================= -->
+  <script>
+    // -------------------------------------------------------------------------
+    // 1. BASELINE ENCRYPTED CIPHERTEXT (ZERO RAW NUMBERS IN HTML SOURCE)
+    // -------------------------------------------------------------------------
+    const INITIAL_ENCRYPTED_VAULT = "vj7bceoBiOmLMqSARvHOxZtJmNtFzARw/bfS6BNzbKDzke7kUDWFd231IHn5xvIYHsRssIxXDe2r0k6L9bMMc8HVyLYbszcosRrg1v6R/hdqO8PyTYANNNTmKMuMNeaJKaOTb8WBXpiqgCVCFF0LqlhH6ik/y0NCLLiXXOmN1iZR7MXW1+erOFk2OVII6YNwSrG18E30SOpU1T9IsklZUyBfTv67T0eCirYrmalukEgbXRqY0Dhvzh0YuIwmEld6iSCliDFjV7FZP6PzYXtwvlXeJZrE81kx1BWrMUY7grI/0thpIlQei1sZCIKyWXMm6j3FQfjbM13kwFDkXcUyc0tA2fHgwRYTzhqf0+sCGGc4nAjFSMysH3ZyqR7TiqvBN9qAHEtxtBBsjQ2EVgm4cjsn5K60J6+DwWq78CHKLSgjb6WRceLoD1jbRbOo7zqxBqxntSELExbOC8KNvoXHtWdki5j+LwUziT6iWoW5oZGxiX5qkV/Uex0V4aXaTMBMFsYvtOuY3cAZPwGETj2HUruBkHSHl+1fRxkLChxa+iNXmssCe91T4tJ5x+khqdudvwKYYHQf88GEo2JvOkSjmGQ9y/wU140Xh2jlNP0V0EWmhGRtQg+xAEOWKW0ti5xN0Ho/7jxcUC8B09uBNLH/zydF03fTth+cN5aMmJBlwCwL3ckIWwFHtrMcvi67BxwO8tBgcB0fqpqbkaO3l7VwpECHYBMYprtjMtRWLZJz4brdrLrPDTGR4INU9faJlrA8gGlp48EmwCe3yp5t9QEGF+vx0+84hzPHDC1F5DMi0Eo9rsYykr6qVQ3D3PLDPneEQNDIxS4UhXcoDryMZ45jYXwxF/hYZt087ppFLHXWT38jgfR4TrHSPQXooETpISOr0rW1fg6+xbCnePXmc+nGGvzA0z9I8Vek6ILELHf0AReDrQdXcxEU9ojL58GZBmlDRLberM364UqJK1uoRi575gADolSgS52K3iCUYzUpMcq0OGF6ictM51QKypfDDT441v5v5rBKEEKky3NOrzwCwOOHwAXDYQ73/quXBGJ4MeUQeTPSry1zuQ6e1I8fYOTX2nTOk2D+cdqSyAhCkSv2z4NKHBAslsfD5kBatK9nuDs/6t8wcCkw+hm58YfM68QnUkPic8Yc1YVVcAD6yNyF8XyY6OptSNvfAmWB1sfuUdJZE+tUgs6/+oo3hmoLVa9RAu+zLfv/+MQewosbaenKXKxA9Rts9tmiG1uAKyxLgWmRkImgWzzzXW0CJdFAgtrM+HnCe9FSkhbFmqsPJYSAaMZ2XxyAFY6j7ovnCUQkH7cyXvanWxJ6TSHgMuybIUsjIO5Nc6nQTbZfsckKsQPA0BYSN1vkdSGp2XqMGnFEsO4zO0Kf3qbhKQlFDA4g8lKYGuFf721lQMmfMlNDHD22Vj+3mqGlqXVMUZfg+L22ZAFQHc9LcGV967YKrlwl5hRcs5aNM9OL+F3hn5SwMZHiJ4zSJfLL2E0btgj0gdY6CSR3tRzARbdWkfh72y7Gr7F5pgZwqQh67nzWEIZ4HILJM29Q+NLWF/+8NgaD5idm1LXwe+FJfVhMP29R25MOj9eIyY21L78FYRWDkJzXU5mMMIcbs+DQStd7PHYFuUtVLcaeFUwk+A434Ft1LMV2nXc1GPj21bDllEdzzoVoqoTmvlkyU8WBUqpv9n1A83NipFhwAS/+lw3yMN7NsQeElq63UBvNP0uQrxu0eEwc3jCN/6flSv3siRC7ps3NirIMn5e3xkMPnY0s66hg006Qta4/gd6zkh/Ja+qv8xlGr1CZyAGG1XSnoCiYvA7JI87OpkDYoQHhW8sBGkissEPuZp4a1heTWD+Doe3o6gAxYJR/BohBN5lb+Jeb6whs1AlwlTMab7Pl0kF+CslfX9mLxPPSv8iu2603FcRQOS02xwNTHNqqwrfCTts455dc4KP5TR4LFJsLyMXRhBNc7goA33bwaCDH1AQk3YybXAJI3DCi+ucX+T7NGk1rtas+eDPCgI12sFf2DTQdMSOmO2qHJU0t6zIVt8Y2lVQmmREkpdYQU+qBUpbMc9gIby5mdknMRKrL78ZTZK7EYw/K3/z7qr11JKFiQelHchJPJR8pwbK7tr7Li3nKqP4Kmn9+z6oTt16P3oHSqwU0CfpPXOwBf0rtjfWO/q/kwreFr+UHe12k65KpEgn8coj5fprlnB6dDNGv4Jtr7WpAla85MP0dz24wlMkikffzYcuAf27uWjEsHconDun+7c3jlap/mRchJTe0tdKjjOFPgIPNtysR6WTJLwXuMAOGbxIosCCC8PCO9Db0CRDcK+Bqp52+bbr1szc8hFcoAO3kL+fDnhCaDUzaKGVwKbuXS3hxkoEaq1BncclGjkyfeK6bmqhMsbGpJGgh7QV2nomNfGgolBR+9IKMdbFbFTOwORDvYbNldSxTUBoaCrntH1M2EFNQIOMhfYBwSiehq0K2MXPOspvQoPNfMYhqj+5FnaJyAnckTr7Gy/zzMYQDdVLiHSPObjg58YHGJd9Ooy/E1/hdJIywcoCr3RBsv4yeQ9C/fWMep6ZF1U/h80Qy68ehSiXCVm4hL3d5MfSMRPVI32duF15cpTmR9dEVeRl8PWmQdxHPnJzpzwgU6eRRk6I1vHRxG3b2UbLJ8CYaepAEBqUBLzJALGZIzRzSBJ14JdPXHrZf4dPn1imcSm4PPUwjsfUQkLQkct1IVrGUJs52Pdh0Urp8xNKJ9jKwDaGIml1izz6g7j4c+HRVGvOl1UCtu8lxQNAPI46jT9K5zPO33f3PqRpqSqGtSkWRDxnrIklHQ6xMedF/U4dU+/1GJaTHx7oqHAkuepiXzss49EupJTcRhU+4MMt6slr0o1jjaMUkD6rNzZerlYG0vE4LaYXjw47e5nCu/RSk4aYEa+LngvVOqi7vUOsUQ3iqQkdgduVI1VsRXFNukGEmUQAp1sskg25OS6Z0BUv5URTBe07Wy+rk3AkvbXkuIEb8PSlsam18leFVcmZdII4l6AtOylT9ZG3qEBXEn2xs48AMxWD1DOVQK2/xM1ufXp7bPCm1UYgG5zxj703GZiSjiJP0DOxbIa95eEppJRl59sSkOGoAmYPAcwc01G4kbieBjPJqudRRbR99l3G90iBX51q4C+7H7G8wKw5JLSAX9pRK4PIzterYB3nFXp+jFqHRi90oNPnGLFMQSfFC+FxVSM8lTXVRLS4//UOi5mij32bJqjbHX4T/+961wcnmkBueJBQL6+d/IG9tkSQXN8vEqZqjypypIzvBwWGdI7LzSWIXS/lvZ8uu3oPeJDj5Ifp3Ep5bV7t0bnV5OGAlxxaJZYBcnV4i1ZASluRypCDIh5Bg/qwt/Q4X+MJtQYbxQ1CM3gKLGqI4iRCt/GivzlOcOz2trDGiwAvCQH3OwuDIwEdvHXKE2I5QEo8d6rfslNveZpdS9Swrwcve3dhUTzW4rm/iZHlyr2792ucqJ92fCAtj7/veEhrJrlyZZbxYiLcCvQUoqlDXw6RsJyx+eRzktWZgUk9Hr4PsqIpXsHj6Skl57ELhzXRKEYG6nZDvcbH6Z4haxDrB1LeRh9KMmzM0cNaqSgOtKoTKXR4C6w2p38zWO33SsrWbAGMICimKODGMrApKA3DtppulqtFV3/yUWfSdkBIX6ctllz/TLk/OUEwBvfd2wlb9ccvwChwqB8q2vyK2yPyHYqop95fPJi1KfERpkeJnQlZcM1yRMQZDOwokPGRmQAl6yu1eS2qgN1B3ohXTYtHacDj6XQBcJkDYUhlkSuksjTEKU3K6BWxIJiviBx361ZZXY6endOJz7HBH+wjzyxvAcG73JCURIcq9GoBG0rMnDbyMiSLZ6KvZppKzwwY23OCVv2+fVckGuZId3muRgDSZRsOvGWxPoSxHGTrc+ROoIXsH9g0/5XDH9XcjGMATmaZAgQvJSIvyQVzDMdBA1R4LjjlAQZr+bBEnipDYx8MQYYkuWUPyxe1+3v1iXyqyUpiYoy8r2CgDkqqUmMG7VMKgjiO5mVtoKxjCrigmo18URreCJwHD/rmOc84/+c8tyDG297AGKgcLYzHjLdZul30ouBx/VvzSApail2NzWGgiA/Ul1GuA2EDQW5D8gwX/0RtbnmtCUPJF3jIDCwv0SRe3Rk9tOZoh0oAwBiGzcYoRtvOhhh6Qs6rHBWkgYFenOgOP8cLPW3caR+0U/xkHt8uP8XjxVTmIjcwsk6CgroHTNhPYhCx+M4TnVs1bh/JOUud2mAJb2spodeUy/FPw2+WIrD05dG+hNYgH0B6dbcjqWsP/mk8HUhTjP7Kj5/t8/G5a3x+snu0btrS7T+Puvvba55x7Eg6yVgO2KhU1AkhYRMPHELtDwrTh2PROGU+T+afpscs8mcWysOPZDgnlJhgJu05ykKcITR6mSdSAuPlaLB0rvsil6p5FvtM7OtVzUNefPpjAt96ab3fv9s9gXKSR1yg7luyOs9vjZ9kZM6zDMBjry5TWLA+ftcvznYLZAVYxOZzSNLXKpjwGBh0ef85ny62IkCX5XUzzS2oZbTviOXSgXJS12Br+Bh0I4KOe7fL6lpRaLFKQXaw6ZQGrED6eNq9KEXiuPqlfw/EhK0kb4dyQEARgRlZjRUEgW0MRKP/QGA+dMl3DANgrU5tGbIXcn1oYhLLdu9dP03f+n4Bf+oT+MWpf8CcxuAZWIdwexmsBQtjlk+oPNw0dTZgRPS/kPDnZt2+7ESkZr7oeC/Vn5+/q1sKtbpzR+ov921oIYgnORj6eMPbG1YZlfgz7/h0SyMYgz6XeclYA7Q0Z5TafqyPa7X7SJaf+/dXi8mJEcTY1UljjUNovGZZRAFfuC6Xjs8jCGcA1w8efe4PqurF/XG5UYzoYSOIpT+wMuToC0VIOCPEJzk4OZit/s3O0ziSV8LHn2kT9lePX0Fg00V80Jl1vu8j/X+3XNMq1S551YIzsBSGGy+Jc8/P1t3eKLWeCEBkMp4qwqKzciwXkoEu7WeD+GKd3YoKhhaJTodzpLIqcEcUTkmDHv2uo+EeLSO9lQe7wpCEjZ91LQZR6zgIGdx7tGVh3iDGPu4hjah/lLeSCRZu7QH7BadkwzEfMUDdAcJ8fWDNWQXpmhUKWN9w1k7+y3kiHoMEr2Eke2CgcIBvxUoptFG/4A1DbhVuoMXE9dNoOhPO1Nm2mbJf5A7rh2svONW7SwGECrfvvQyoW3AUt9ju7jW3M57FYK1vq5eY7ncwank32VGG1E2Tl4F2P1XakD4FWGi0fdxmOpi4Hhb8LPnEd9G/dShESBRAAQ9vlUo1h7HNXLQOMxuAbh479JeNlPSEyJl6PuSfa+ni0H3oNWR2aB6jLgGhXdqw9aBWtR1QmllVl8VhU/RCxMV0p/xfpEhqaVzoPMCd58eNDkdCD7gy/JHNWauyyIfzvN2okRAvbr0ohn32eqO9LAHah3hyuRvqF+78eWV80Q7OF+SD6tHmof/O5+vgMYNL+AL5gdeVYRGVYHNPpbmw4hg9MxZ7lw+1Ts2oCMLm7IZZWcAuWMJH9mvepNVLT5mLZq6einE5Ck9OiGzLQ8r0ZQURlmHFQWO6I0ri+OShz6CWucGyRPyDzeUA8k/b13mMtu+0g9sCk/ClMfzbfVUo2gzHVTY0KdvBYcr4q0vuMXKaBkBeJUZlHN0sJfTdpBqhcRJQOYdf5sbJy7+N9LpBFvan2kuWsb+WdGxvpAG0gBfSMLKb/iLCpd9Tzb+YuWdVXzmxhJsiYDPD5ByfuY+3bUEEdlhV4kxB6Rsig+VnsBkosmwcV1aiTNcrSGVDDWebx8Jwgn0/kQatE6VeUsE2Q8BU5pQ1BE+AkzUevn4fL1hf7Edok72YGKPqx3gO8HxK+qbq0Gb4d5kHUmdzKt2UU6DIrL+qfk8ovG6kDs3ecW+Tt2WgREKJ+el+t/zhmP6zpnEe6DQktZZCUuqz7ucDeT/mQZpoIY/Fka9waz9iPS3Q8r0lvFXEaqE8NgVqNp+UOypmylNMCNPivjJZAvvx9bI5buDtje2hKyeihWvY8+4z6HO091JDWWKRITKQkCxOkb3t7l9ZaKNPKql5maPMQLE+5PMiB7SgvC2yohUIkA40o3jL5hf9FhU/L4fCgmigh+aGVEpH0sYZ1KdP/+Un1leovqiHgsvWo5oWNB4QEiVfp/s17B7iCApDAZGNtx+V+bo2lhEBW+LeIz8teMG1zGGxvJg6+VIRdhNFZzkkfP61J3ztdsl+eKuvlyiTpcomeU4F6sO8u5uXLfYWd9cST6uIRiNbuXaTmOtF+9QGl1Tvx/OmOXybR9JFMsgJfT8L/GhYEGLAPBFYcFz0Gldc8KxpE3xNyXWc9lnoonkN0q3wDHJq9apaLTuWw9e6Uv9F1M0qRXSxB3zyeaguHh8hYrl3HK49hgJQUMPz7iP/P86PMKFPRhwR2kVC4kPOnkGMWVEP9YrhOD2peC6+cc5NAuifcA+7/49tTM/I1lG7ZQNn5K2EkqfVhK7PDf1AZwtEsNIxODDkXjPvU4VKkTun9UD6NNqB0iQyy0UL88Ehp9kKxjOdtI8qebYxX4H4Pygs7o7r+FVfELQnTa1HWO0k+/8rJqAYj4Au03FNcMt1zOnMkejKeJVhowHPcvN+yADqUxiUDrSdXOjvo3o5dYl4vODmylWLKGhwPVwWcqVtpUSCaaZVu/VjAX67dnkfjnGL4n+Q8RLCzTIdx/YNiz1euPrkPUlQ/EoJ77MUYs5Sv1D5fRufps7OR79obOaoucrqcvtKEvT4VdRatbIwl9InA68bjvlVr1s7DzYJ9OO3QNGkTgvYwpJQI2i6PJz+7MPxJLJ0VgrFX1XCuQNFblAr93m8ybaXz3Mzb5tFp/tPQ9MUQ2y9EwOyin2lfMuOem/qfmqxDgHAtRnuJ8p1B3/buuxDhE4HbgZ9xzrowETwmecRofw7xu5IbTsBR6QicCsZSqHNUOoX8c96xZtT2WKLK9luvIwh7SEoryqlYLxBpMOOOq7ea71pwr6drR0UEVOYiAWqbNX24+SxoJG5/AATcmwf09gZ0l+MMLDqe7vxW+MqxcBviHPpSO7IgSxm6LC39D4E+iAbPafjbrZ6B8hEL2Oj4ONM7k97N7s9KO64PHkUeZ94sdfjy7uTrcJLHqYj7NOGdOGIFPM03lS3ESd9mrzPjXb6u3c2uQEJH/RQdzem4f0GTS5gVTJ31OqxVUdykFbfBprNBhOy9d1IhMXUlPLOL7xvKXK68CCYT53mqF/ZxXDubMVma00wHx38Ir8e9UCu3LZsXa2U8YqzsluvLcoVv7u/z/nYm5YOGoQE5rVWDU82QqkUEl9drFlAK75me64hflbi4lYGm2GHdvOB2IgAZm7Q7SMQqR6my9MnR2j1QvHR7UIJn6rmMAnmBMjW+i6e65fLnhkrV8bSHXtK5HEwxD5SsdeopD3XRh40L+7tqHpjWYEcrF2bwkJYPL2NFf0Vz04WT6vDUS8k02ys3T7DYcX4jbD/Q6K9LZtYI2ezWQjx+4MiK07/9oNBN7A6gtaSNYdnwSq2TLPLlnv9dAsqQjs5Ri1d/my2anmj/p73Ufu0G8D1iHL0L5CYhY/5FyZetxBHBGG3aAs+MRA6ukkg4sxJrEXK5MdQxcZnNG/a4zPyZPXGSedOWYcbj2PDatFh/o4dNXETzxMROoXmy1L1Z4fd9InhDt16M494LO6eD7M3tieHhyicavpC0qhO+wCbnP32OrJTtitohcHqCt8/Yi0wi3F9Kb6rueoS0wU0offP8sgc2BMnSlZwlz6hl3YEG40EhKzV7KTfdrnb0gtmBsG2vvxflQEdISiHfA7hl0m/7TxBi/Pb/zWb71C8WH+B+QX43uSCEw1m5OoeFyHrIaq7UfWOdQAHKWH6Yyg9aY1N3oPtvKkzdoUDenyBJmxyAb9kSISGwI2vg90LZjCAPN4qw846hs3JhVaUgdpZZMwJ70YmehBLeuVM5YX5Ka/1qBTCNfUsynY4noyky2yl1YkRkoL1UjhOe0B+awAKX4CEcGKN/I1kEdNlnRNHewVp4PlsYlIamKPMEMyJgLpU5nD+vP8II8HOUFHfPadmEvLD4Bh3oQkl0yeHCYYqbJtlX2iMq0Ftxr3tGUSpf+fhe5vpCNhWX7FY1rY7uHtYTxmMzZ5ZeC4fJ5WRJEo6ZXuh3saiH415oewCpTYFx2zZH2Lqvh5Mm860ja3RWVdMAi/ObMKHrniE2aq/spNnK79XE7ySdwno75GVmbTjSLLzQkeXkScTyc5hKIAuCRgKMUBYgV279LqqXFIzEA0Qnt/Emukc7rGJo1PCQsUQuXbQJ1CIxZPoeLdkPVMP+uI3veBE1m0VeFg7w6ExX0Lx15V4rCsIy7n1Vh2IOwDSllJvagHudUrnNQKAdxa43M7CLwDX38xcjfzcjn9x5s+Xe9lJvQilinhgmc30Q4Iorp6eLkDsYFiiPVF62B0zVxU+BgdynGoy4B48HUQngOkfBtzWrI8st+0Ko9KGHlgTsGRY+hO49uf1RXywBZBWZwAQNeaARqLWATDkPyUTkOqRXWsg2pnbIj0Sic4T8SvIr+8p3rIkv8R6YbBL+JlAMcea1vehshfX5aQvOc2oEVbSjBTt01Fg5vjUt13pqrfYwSc8dGgrULHxh8bVx5x5jQqkP0K40kr4+BFMeT7AXtmOHZexWWGx8EqRl4dwqSqSqrbzliA1CI2px6d6c5T2uVW2+dUQ30TtlmA4P/h+vaNqLRFk30XA/8hPmAVFxspbgOW13mj9857DOrYcmPsswrHRu9dwQtjYH8JpmOnjzZMDfRd5Ot/PIBEqjGubGDjzG7nBZMxIznrtiZe6YSo0DG8c61n17XfCchZvyBVxyj5zJ2ZFzytIL/7AnWDDa7RvVGqv6M8uxBBgpIHsv6N4VvdAO/bNC1OHti9MdLQX95Un6N7dQ0j9jAfgFjA5nQf6ZgPNYSySUBM2UwASbf/ptPSH0WRi9l0yh04eDOysFxKuTJqMQwAMD09cPJbNHwKSisYwn9a/3J/xgj2MxFenthoSjc/P5hAw8Wt82XjYIKsyXzKnJpaH76RB9NF0YuDbD5Oi7qNN355pBx+HF8FH0d9/QCDjeowV91OnwUQKyl87Cw6YG5s9/wPp7S3U8bRQYA7EfQ5MLx3x6bpYYlHOfzcuVKymfkF7AwXOd+pAkE9T5mhxjeGd52wW6O0TMvLjemgdoFKy+dt68NX0A1xNjm+I/wUnua5x6Wc1N4ZDhVWCLioY4QPgsWIjN++XtUw39q9gK0hdav4kIz/Gw6/M/FCN5KpOphYrIaUGu40YcethMIm2+IVM4m8P6Ux3q6E6D0o8BPjmZHivG8voG/ambhT3UehUbzU8Mf/OCePoJOOzN8GIs6pjOItnzrl7mAnggkheA8C0nXDadf4PyHwCeIeWp6bInLTzVsB9+N5y02dbscw8dzWMxOYf0Lx44iLbVHGwHvLgQaS8Nocl2KKzEgUtcfC68JYNQKje/I9lifWUEBrVEMQAnzWywHx0pgAk8kfItAxHlN6ds9svlVyIlEf60gP/eUvBQG2CJU77GQiUFs8BkHT5TtwJud2/A3TGJeqX6rQvigxcYbyrxgdMzFgjtJXmi/r7kexGtcxxGdKp0Q5+FAyWivsxNPPNm3SG9K8Yzd7AhV8lyx2iWgsLuZLefI3Kn4yUEPU4Y+9yHA0yGMW+DntLdsYj6W5hcKi8ZB8l+VK3qHDpLFvNV00eU+ThYIGQaZO5pZKYHbxqSOUD9Pjmg6Ho6P9VGdRvzXiGYBeTV7TJu9VxuP2+iQWCJuxgshbs/AodT3qgfD46Hvf/I6K1P7LXkYNymJ/jWeNtYbKGW19J3RjHeZMQUM1FC/Mu2m/4dYyX8nshLe8KI7C6kS/hmsbMOqQJ1XamUoxYkce9YWQxcGRLGDEeO9stmrEyVM/5F+4LzxDJBcpujhYBB55IdXlAPyNMVWwcffzcep2/BB2hYC2bupppKr9g7R8Ssy3YKQa7f5/bJSJknr7Gkf+p82cb7x1jbUdZ+70wn2I8k0CGFIa1wRz0JkWX+baHzGbBExYs3Af7AqeaWPgbLjdaXgKXKAzGAeZqF4PWAXI8bq8rzZzCnmz8E6b++I8rgfSu7dIlNiVKjI+UhT2QIhuK1LPWDqqbVaMAkG98a1+f7lNbtDN1MO2HyzkPnEWXoYXE9F+oB/iaT2AiZpqjQptcqV5kFpPpwI104UyJpMqwTjwYFwYR3geRk1mSVbkkBoJoh3K2/M1dpFxw1MHZ+BV8SOTpzbeCgi1n9KFo5ydNdBTszIbZk0WOctuvFdEqXZqj0bQCknny3mxt++NSb3Z0YDK/UL7TibcRlhMzZhzs16T60AZifCLZ97okehRvV46jvhCrmdIgYIjj5vPIlLbxPs+Bgi6XZdJ26X9r4z+MXW5kAmFIg3cu1MD4UfEKoiyQW87IIHj4A8H5Y2hs/nhcAByZJgepWeyOSRBmVXND1jdAlH0ZTUo35v7YBw3ZiN7sM8j++HBpkO0ZUYFOi3I3KGf9HdiPqg6+ezoxFUxrdm8T0nXNPC3rgmyKONfRjgQaGzGhzvgAcittukKDLmGMIVkz3KRuf3DJMMjIyHe8KMpxGBj+aqVmVPY2J+oO+z3b88lHb6khE6us3xEQEhtUfVzzESdZLFLRRro3cyvg13CS3ihtOlYkQNAUU5iKWUc27860ocYW44omRjQSR8CouzTpm+j64/BG5hThDfj8I4wWeHWbD8HG5tHUFQxH7rZpP+jNoED76KZ16j5tvozuKeoHQCejslNqEKEm2+ksmb6fNZT7B3ETmGc8L/QRnCha6SbGWZg9OlDCjgRgmTa22E7pxMHO9AVDNCWUq0Us/39BjWHtEhMrGHtnZek8miBvPGVKUOCE2stMKQ4Xe5YAock/YW+yUfXkZQIv29BBKP7oWze2Bd3Pca+rGqQ1dAbDxOs1mwZyrUTKMqdOCxBM1yb2RKeGjbc3EHwIx9rVxleheOolDLD2FrCOQUgNg3q1ucYMLrfEy94JksVYH52Z3mEnwq9BOCmLaFRDiqc11tgaJam9S8wc5EYiac18wDx5zppfixmXJxj9p+VCx2HfbgR4xFYzBR/Q5Pdqrs9OE3LnQXOGmr4J0JGEsO9mBF1qLnoXcLimerUhqdPIDx3eysILFgXTqlgNGJCZl62uYfnbpHL1uyfEyt9rt/Lo80UD1gxG1GTJ2lLbdFRM6bP4L1SqYw8paK7CZZ/SQyrdjzFhBSAhONv3ac6S5hIUBU3MMZvPb7irDXLWL2n+r6viMf/mNLLPIskZLSLovTU6hHnuNN5E5rgo5tjl+2/H3w+eIWTXEsSCmZ8Del8oq+7HRXCkpEyBDZsiNP3kU+5n69lVQuUPBlyhAeFZ0vDzKra5jb5fe7703y4ieVrgZaqPdGucr0yANiT4NNqqb5FaLEeATU2bKVPcVrqF6psYW6p2lmbJfKU2u9cfKZyI8+qcf6gPzJrUmqa1mzOLfM9qOipLTDY0/HjfOxAwrRj2/QczSNaaBuz3004ipI5+h/JNnPSP0K0ajhquBTjyf5UWhWfK8JxHSAAFANMnwAWTqkkLUSsXypVgV2y8d6g0pOrFEHmmPq0Tq5YBfk5xYfBd7fSJX6RMKN0ub0ynujX09gYBbktQGsQeBuGZERBgfbVtc0dxqL8wkmMVQQYluj+QU8j1pn0HcjPanYUwXp8kqgtyOIpfgpQLg+RAm8cqa+PLqpH4QWmQmHy+U7FIPOD8zVukM6d6ISiAZmYRwCx+iIn5eedwgjqsO09YXYtQMqX1w9doAHPQNGvY/SztHaSBx0v7S8unMYF6xmk5133gdaqttnSa3D91g0xSDh7R0x77G2/43X6lII8g2c4rozK8lxzM0xM+m6whaZOg9Z6zTMDmfYjna5ABecHZGlxG/gJRgqQ1FQ9iG0uN65Gw7G+CnixPHgS5dEu0pbS7408gJwUczQpe96JXcTPmj16I+EWkSYQRoGxkbegCcYcPyQ9NsygxZMH3f691Qk/CiAIGQd8wU+pfLp2mVDovEmAaGtxzo1gnIOe4uUob7QZVKTmsKJeYLpopP/yo2K9SFQnzYdStNhPXP2sXKDm2aNjflzKR7sHkEGVJr3PzJIGO/PJ0UUYf8qESkFo18rCruJ6umwz3NOovcWVpCVrP0FjRd+6KrGQNB9aoUMazHOqks0OBMkh94q1sfhmJvojzGZPg+b3M81ZoyuxEo6450iN2hk7y5+sWH452Ga3nPRj8U5cq3q6eFbERWkha4Z/bZ4n6jj6yUmcQF1Yg4BsyJ98kZjzjkEnn08jeQMgMuSi9pLGOwHRCxgEhr7aDZ0IU0Pb035kJvHFXWMHbW/9KkjRVTcGAtnbkacC41glubZ1OmyC7PPD62hUNz6+1eoPQ8fqCI6kWGqNZvOvj4uzFPsr4Wjg8muFB6jvgzsouF5Eak/PehhnIBI3PO/jjzKvdRszNEfGQKqxmWEiCN39IshKwleYHaKDGWsXF5oyGhprpJQrgwucsEtECJ1vegE9aZmv4JoNTxDxj6RvfprnMlAHFvv/dBz1wndvMFjzKfpzux7IyhT0259X7ahnZHcmPi0xdtLoUXli1Wg/L9c+2qyNTP8oT8LT9vIBVHnCz4MsRhWnxNrI6v8eLL9kNIVgUY6OUZK3/hy6czct+L6jJO6iuTniKuIUvs4F2oQw5CzuytYxwPQ2KbGPoTNuZomQfy9bcwztbtvxvznBwqEzyI/mJRV5Cz0eKf+fbApekx8S99ZWBPzKNl2WfYvk8CA6ZGmAnc6MFC64RrxvKKPF7EMHF9S7vyAyRrp+dXnMYSyXO9DEY93I07TQrLk4XUGWRppMWBdzwr3uY+oCXJgAnJ38TfEU6Jpv+m6GKevG9H5P7SqGfKmtI9Iity6wqV2P51uN2Z7OvZWDC4DCnl754m0cUZ5+UN/d5IrjFGdEt6XKs0LVS+cPzCc6ar4MFcfYtV9gsZQ8zSAHF+9NF7NLCOyWdnpRhzhtBwcC6PwFI4oKBOoTVAda1ZBVrgHIfBVwgA+yvEl3O1xeQUBheuQ/5bF1pK3AtL6VHH7JTeRih7PbMvfZnS7YzSQbWe4Dz9j2ekEonxkiDcXkUQ6WjZ4Jdj7lHpCdv5CiMCJmprvf8GLZ0KOF7QW7wB1Iu+xBc+BOAY8g9asQSvHY/Hw360OiaZex2t6wZ044Plnhpy5GhEbwjhfrPmtNj7W+CWiQsoyAl2QgIx4COYDGvOanzDF443Se2tNTTbDFwmkLjGRSRDJIZyZFc1OkV7oiOrRSz4nz/8x68jD2E99okspVeAZHt07DllmCTQ06QBX99UIe7WCarn2ENPeQB497X4xr/1CxonMTxl4jDMsPmO/VJn6owrIdo8Hxkw1LUaLFgVZkYjieXM15CRaYuiYoLQpQ0gbWl++CUGU5K4m/+bhIHxwzcrSNEvD5//JReGUCfTJLbNltVQs6NMPBoRxxk1o2ZI6oAHVKS+aBwzvephug0dYSn88EiimU8E3YBFcHM1z2/K/f3D5gg9MfigwKCMRFiYoHM+uFWCX5jtnR9ED7gujHJb5r5bM540k8xKZQ8wmhYpblAdL3XkFpp7s7CfS1XQBPDkzdL0BJmRtXneVXvvars+SNkeXBla1d/8qN4tipp32478KL37Zyidy0rbtwFSrKRL4rGr/DA7tTgE6xgxCT0+nnYcElRjbkg/k3f4qrD4CPnFIpVXCzmxvc/InFzcge9sgvuR0OwBM427zfFJUwqzYvtvBf4RW8S5fG32NQOfGtGTMX+CQIsPoyrddj22taZBn7ljwHpZGGwZ6WmiZqBHONKlyWICNJm9TR8l8HlUIQIvBpuQQowrUMpzMxGUZPhEOheQ9LE+80j8E7/KZSbxCoYmk0FyAPyMJPBUlllmIhv4GfzsyGpq77zXjs5jKJjY8p+YgHhQnF2mwuHzz1nJlcQ2rFPSv5SXYTL7ionhKBiVY/XxWSb3Mig8tXwotKaPNw519Xs38YQATCu/NHQcUPy3n72g2LO0SAXhThgWZ3Dmc7Fu2KSTiD4OhRhIfIlncQzcvY+gYCZ5zXo5WKO95mog32euqcirIwvo/L6MiCTgTfGNTTJoYMCfN4d0d4Y5iahGe3Vvfbtq4cB/D+J1uNWkxIOgseauBmEsZSdM5wcBA9+p0Anzjnfvf/S5XXNcltn8AGPQKUl0gfVRuLqt2Ss9iNBjL/FfXrYcBy3nTOtgOUO9Vm+F5+UxFAB4DQFpk4IG6ZzRN872CDg0uavya/3NpIxGBSFSkc+pALk+4z42il+2WRBorIQc/rH+woRf3BD5LNBZI/2ToyBClh2r/QU8rajo6y8hcNHpY7t6a/k2CbdqtEWNIg6n+NiraOO3nzJUHfsroQy8lOvFhkCoo5+M0gat7FwvdhT7meFGqN2IOWsoTjcYVVXKDBvE/+mtD8fFSrQpqVWVku7QvskZh7E8D7vS6Z5dkEzRQpgXdxU3l1RM9c+7a4ibNDoLmGZhw+B/htYDdhJ14OjzSqt27bk/hq9vpt5MGNSKKlixFKBT162unYQaEbKSGxPHrKGC+m94YREllgZKRTqEthFpOYz3SGxAkElt69JVsrI1Y+0P1UQBUVBg7wtJ/JsIX5YI+7y3BzonrKrAz0890tHlemsmvFBrDf8NKV18DN/k7v5Z1SEE4aqDW+a2Bb2OBSK/LJys3jkLj/Zp5o1wvQoypKRXB7HsRh+XAc3rLeFXQp7qwSVo+/Ng/SCqL4l/rzuSRKteICM8lQI1OslPHgMkHluwvrYBDtTRvrhMX21SlZfx/yOKM6kTD1AqpB/DC5yj3Q6t9G5BGCVaIFpW9gsuA2+lenHaCY6gP5x6qf78ksfHw1Ca95gDaQY0G11mmRFLSSEJGBTZTMNBbAixm9FBp8URldNSIp1JyBbm5Z8MLp0cXvvSz/P9821WClw+vdU1TpFD/LS6+v37DCukabowJVuFA405mOmjRHwTJiFRT4cYhswivoU4nf/4jGOmkB9eke+tDmg4jnIJnTe9HhseoXGIKjCZQZ/k3l7erqFhTz7l48muq+EMg1occAKPEWBffvWME1OD/3M3XHGvCt7tvyBUSkqL4w/U24/kXnMW+VHR0x+PWby1kN6y0jGVyXRImWywZPUiCJAWYmtzwu6Z1StIPe6CgWCCrGUk1zPsJ1V1Bi9AF81NCSGk9lCOWnMT0bixFT19wyUXsAMfIBaLEjMyjXQf3NBT3cOEfEvYefP3lz1/VjLFoPkeMJTZqAW0YSZr8v6sQSKBcDBm/a8XMciccDZ/xosK/7ot6+gjYhq50FQ+pWG9L6GvyWyu8yqotln/NzRaflw0usjpl34xBMFG7V07doSEAAOpyiTfhqiBXpcG90MqlnPxfF0nw6LcsdXoRdX9O983gcjdXdJ0rvlsU76sMFukA49CAuOGKZcxOdUobyedn5gcW/BP5jOUqmAMAYwa/FhwdIcKWinNEUS9ZKB20/ku+Y6uD+a5oYFNkNxCtQbTvpGYQJjQZrnRMnwOSDha5/LvZr7wI3jsrSAEmlVmxayUj/98vBsDn4uov47dwo22GoyPxlpCa3tz/5lh7R5bDxJGg+D+kPhaNyb64u/+kEjsfTy/pwtkbvVkhmW/lICrUjx2ekMk1hSK+Yzx3oIsyPq8mCow0ndlHmCIxr2f3stf820TCel+FIWsPwt1/O7VcyQ3fU505xeygHyZJFt9YwfR+P2jHziynhJjKlMgK+Dy9oKLRONSb4HlaHHmt3C9kKtizuvy9Mu0WkvvVQmBhhq4azWQerwW4rw2jR4m4YAmzRIHPDKsgP4iH7DyiQ0de5UlcuFhsSIMIS1ElnueI4R3mEELA1lV8lrt3OZHtG7Zv/uab7srEjhz4sXnfSQY9UN99Qbb6WPsnNXOC2+vPqdoCSQyEUPAHENYglQls/hAanhrokDyCvOdQxO0xfqBW+u6M/DZuLfgOACW5L5pohTXiW4AFpe6yziN84Q9NhzuUFO7GznN1zEWp6I0t7ru8uJNI21U4u2nXE0gOVLTG2QxUVBHEVIaGrssvklOmCbD+IYsEsa8Ao+/Z2+FC/zWJEX8N3KtCsK2vPgsTGW2Uq/xDS7pyap3NAdZ2WvR4uAUiBz9caXdnW6odMDUEybrp6YjMN17Z0K29D/1uPKlg+DC5BWHCeR//6+KCKaSW1Psy/Czi7V39CTlqbZ/aBqsbRrL66GtYWAquBX8UjWnZ34X7KcZ33gsf0bt39knY+fRgK78Wy207/7bcuidszPOlZV6R26QFck2+BtgMBB5wh7lcBiiU7ZUSri4x7UBZhcEmP/J1Krwu+hY4SmXatdLN5wLfGj759dccyrjspxmIiHeROD0ENmJ36f7KZ6VkMlVtYE1yZDf04Zy4Iy1R27Wln69+HTG6TmnuDpsux1RxKfRIO1XIIo3RTiEGoCHTojhLwyQEZ5Ee5X0L7KhpP0W7Fdmqg8vKBiNRpyisHEfQ2EghpnGSFTNjVHYWCXAHrqtr9TgZL85R2eTQish8Avb9ZAqxy/VpI85M5Mu7bK4HW12z0myS8CHb2+5viiOJw9vrvvgxPtGCJqcC8loefynKeH4+hc+qOakwj7Xa3hyZKpwc9uJocWWuMzT9XjWGxYjsDRGPemVCgCIIlLmP8KFmRhJicX48UlQyEAKyK/7sLRQAhNRhEM/VjrUivNvwknYqxufFIBoCZKS1xbUDXPXwuZJOtl2JLTpeuzsCiAzDkZJ0jX6ULvlCVISor6dtzlNMuTct1kb1MZZKxc5+fpgHIo8KWH04WWrGou1IEwkZ0hZ6kRYqQOWxJVJFukgoIjUVs81uqU7LOMO/jgLvVOIISHb65pTJ7y5a7qaihCqd9wzLetRFoWNt2a8v+w0LfODSL4eLATpbX95MhE5Vk6VDJ4SB5BLZQ3H/44OPRa3Io2yjwYMbmpeX4CPZ0fgAyysJM8x3HzgePPWGtuOQwrR5QCyJunAtQlGho4T1VZhxRXEs8F736L5lJhstomHCD7gDIO9G324u5QJ1YsRiXA6NIlC+kM4qUnlXvM196IzgjKr4NcQcrUDF5vVbXWvCRN7WsblI0oxWG4YW4AbUnPwYfjKoDnYUpraXNUDV6byfhI0NUSzzitJh/Fs+9r57bsFHv8jj4sq88VQL55mWFYLLxoR7GwouUnuu094FCRdzg646drpvwiDFMnntCdBJ54C4PeDryc1ecVPxbFvo2crtATzuPnEnzULxTNx4z/o0ELxLDduhXP6dlgDHWhsgKYMfNEM7IBuUGgG/HA1aPDqT6Sk0WzDv89jjY6XCW+4I1Sa6Dz1t5x5cZC7EpnWurBGYR7b3QR5yVRCpEKuXbXCX8ZX5oTxonCmfCROPfGei3ESzMd9CKNSyruDngYenz2J1NX9FAmbsPUvwbtrJo5G6/fEpYqwad/ILfdu9RsyVVdv4w7r1I4BCqGREvUurlNNLHt60AZPzUccERszn8dhKQS8Vc/69XqAsl1OO3Wtx9W7/3Vp4OXw56JIG/U5zwkeGHxaTvhzNBbiLORa4wbmfgl99PpRCL9LMGidlXchGp8t5yHsz37KERfgP0DisYdlB980WemN/XlEAFwR2YuqemIE+iNzE/PcWTSoifZzhx7L9U/AAHpg4qWFblgrR1m9aU2YevcW06B9azYAySnXFx8IZl+UiFVlIf9RYS1wLpLoWV27ijmlqgx4tWixZYJx9wzMgCkNI8gdE/kC+Qwc62WPKEPd8QJEZDroOP3HWk1mE5M6n6uzi0wyPovU4WSP41uTD+KU2gvVsQO/m28eAbtZLxsSVZ+8p4YBeQDF63D0m1ksQl1yJufkm22jktp/w7pjQ2DSebnf78u/3lyFvamt8WpxunOUDdwCHFuR023VWONqcn1ymN2Q33ZspFEEQEwd7TTp7rxXsvDTJQBxxBl4IqENyDl7tsb+Mt0FXBKk28XYnHSIAud4n+gA7Y0PAsUBHDs18HHcVQ5gTGDWx++v+v2DPO4Uc046zeejdfFp4gE4GYJZmqEhOa4LrcFSGCpz2S3QRdpBY2QKu7+RlbQN+5+3BKZN7nTwgcHNL5Uw1/eAVE30DBnDB12cosraKxkZb7COBIB0FldLppd2xe2KHgBHYUjcuw7+SoOQLmn6YKPS97cXGiL5ekkFB0UkbBZXuDAiu4baSmn0AjmLymQPa6gozAElreByjktF50TY1xriDfL61g/UFOdyJFt1l8uVmTZbH7VaHT2ipv7Wj4f08pwaM4QhhnscRe251wrHTUm2LyP05rsExOL1RWKax1M+0cT4+sqiY0bY8Htjxa8HyL1rdOHyCuqOcGIgWf3qki/+1zZtmEMt/6MiBmuJ6ihcjRDDd3xHnG+Q5DNvp4Uu5ZdQV2LC63MTLNsstdpFl5aiC0yRtZhG3uGlSkUPUCbgOtZHVcPj34mxnEfVVllh24gzWPIq88hZytSc2BoNMFILDBWDBKa0Th0//nYtPdq7e/FuTP9Wsp/kzur6XALER6c7dleCwjp0xRJsrMnfPtfZj2QSkk0kWRg6i+9/jsHbCfhagrH9JlBDgjYCjO5tfrZsjvbLWWI/yOekfQnBSSzOFdxwMAXPnwB/BK+SIvxxreXSUxz1jFfEAmn7zgtcOYc1RupCobatKozcpl7UEGlnxhbMPWg7yC7sSIfEZuYSAoKNkWhLU6Y7k6HE1WQgE/5x7gcFevY8w/0nI7OH8T4ncMVyp+Rt+iOhcyyFzqXQaN24Jb/n4QdgvBHmXiP+eilslUwsnd9675nwHgOSMQDSsrX1/Ee4COGzGVM7pm+k6Ewcwlf8WnCgwMKnkeCn2Q2icXIFp0pjKiMc1hbK2l1VpVLDBMEv9I4c+KZKmRvDfl5bG5BE/QPuDyupv/URnCHT53yc2XvrXH7zzI1zpOYgkeSisO53RzdAPmenWyAA9/eRsufiCa8gTUn7KbbtdRA6yTGWA7MBdy06/0rk55ZiW+GSRDM/39tZGdGH8bukBrVZOmHm3PWxmK3Rtl0WwE1uj42X4In9olinOuhmNmpEnjVHljSVuc0YHB3xNmNPG6Rux0lgJMXlbrbl9EBQ+RBC3n0D7usvWGqbRbCxnVRkFuTUtvczFVDrq23mdeNB+/DHFXyChAKKYjSKUKitWGmu9TwW4jqcJ/Tw9s8XO9GksvGrIVPXvOkDUuIJyxqmcHoTBgZc/YlDgqErndlkELhbmJteu3UD6kyfZH4G+0Hzky+Zkb1Q180OmwZ5HQ2IEfAqIMPfDXZIiIVsrUu1w8+bRabt+mWyrsr4J426PFz6dK8HJduvw+0DZMC8sH/nNfv+bkl21SlWsDVA33eo2VRnr9W5NKL65yYhu6PrK70UzZVSlmhUBtghvh+WQogh5+IaEugsLrLaN+m/anatHAuORHfhtIFFWMp4ugob5obrZyuuTlBbo21e9GMxgf2KKTmCBcKWyAYeaA8gCchI7ONgbQJmKQ8p1zcvWTVtgPNaFnuNuZtBQhqPd2RvNWjmtDaL1mp/sMcrUdvYhqciIG5Ybs9zRqJLnxDONQ/ESbQP70luw0DwY7RevJDLPJjM7iXM5b84E5MsOdRRgCnD7dfJlL03H3n1LFCaHfAHcPcPrt5ue1G2pzQtuwiiFSUaqvZkFxhqUYYNsJTwZOiZo9WLusUUWu9sz/rA/I/H9odoDmAvrQQya1uhWrITgrCGqtcQKFS3qMJzNyu408/LhMCvrwXxGGIZtDRJcqo8HZYeA3M7GIyT72xypuGYMCJc+3upWcPHmYPZZg+/gHA2XXVTC1Tc8Sbyk6qDSaiVm0sass+lP6F24sRyL+fUpXbOcuzl+B2UcmsKCmtJqNED8+9cHr/1MHPYiPdnrzDUfKOCkOmCA4A4dWezBWqAMR4LWxX/pK0zz2bpz8s5PA4fr2AyQPwdoWtftxiimik2tB2sALcfzARtm7DDocTbMWdEztwOezTyqTM2KhM1NgGMaqY73wBhoIYq7Z03gWDTHUqmCiqG4DiGz6agT4mNKxoUT8Zn0uLvnEXYQ1UjjvcskTQgfbpbXnJ1uk1BiRQsWUPRzpyOxYx2sfcJ8ipi//drjDeaVNLlKk8IA2HZtt3lgUqlmFxHq++Wb9hVebv8+sTpL9+CCwgKIh+FVBSqMCC6IeiOxkHUmJQMtPnSnryNbzs/BDrPRyVNsd13R7jL8+a35NnGn5urJM3X8sEBFv2Ba23V7qCBGRaGdlIgrE2eXiuGAMgmtiyRj0DAxuyIBuWNGBTUASf/juFkS0z4GBjymdhMBIcmMYZphyJfTT++uZh1zvXHcbZJL/xETxZ/VolE69EL1mKWBpoPqyCH72SsF6PLd/cvLcjd5aU47uHK4309oQiB6pmNRWZ3T3iSndEr4ie9JDul+HE3ha0VUvLGpPeOZLHRtFQyRPYGDHPuh0xLWa6yMgx0+fLKcoxyGf80MaDM6A/t5Q8JbfDyMH+3XTLNgdZc9jiIwsziwvVDr0aCc0NM9qR+3XiuL29a0iQqSMAP1/VpfWh8IItizSHTvRqRs2WXxcXYgaPd0aed2bQ/aoc9r4NUaV94dmpEzTEbDgNgHTUZ6pGnWr23N+57/dY4Owlr+Jj75PgEZPxi4dSScuK3tvfY+sEFWlxTI+TYgNR5Bc5/Zg/F8euZcBBQjoQYEtJxHiiZHeloDW+x9DvxCa6NozS3K0J4BPulkykR8fKVp15QXkLWBhtBGd44hI0rqqIHX3RRhYJj6r19ylW5tiK7wU/FUdegOM6Chsw11JfR7153iRuGqpONianU+ylhUC57tINcKP8KwwrJ2r2UtkkSz1qOToeTtKoPAe+88DhR53JpZ/fVCAYaaw2MjVMqwrmYeG/RpP0+lEQz84tjCdzuOt9F3EiimAayvHGcEDCzgd7gn8e+Fx1OJXyhBulRH00OZaVmDh+2YUIejnpJjy478BeUCSbNOkbq6F2ootFU9IqtWynjrwTzObeW507l7UUd+jgnepeYGDv5CLJaq6kXQWZQ1j+sCaA7YIX3ceLVWDud1vewXQVo0Wxfz9hMPWgj5O64PZXYOt+k4On7fWYtnzcEOvF5u19cKaHhhrLgqTtydA/v2tiFFANGq3piiyliQXv8UxNBbp71JMZkTt6TnFRABX6a7lrL+xPvB4xX4byznyQPXNaLAQi/apW7iJesHAw/qfDhGK+yz9R3NezDgPey0V1h8c3Cn0oD6ltErtVuL+/LOD1qSoh40Otwntmz3TcrAyKrw2mDby4GV9+Us4Um+uauJy1FqUtqd44em2vl29yQUuU95ybYeiF0op3rtVnTha6Y49oLelB7ovVyHenmYSUfIGKKqovXwL8tHjoOiXCRZL4QKz3zNReWgBEp46+Y0MyoOtHfhjZ97dE6p60qYfbiGnrw1EKHnRblgfDsP9oEj65LXw3MJZhE5UXG2YLZDsm9XkSc/kR7Dp90DcZYl0Iow7x11TBqHE6jL5qRmrTlCBec2DTC";
+
+    // STATE VARIABLES
+    let loans = [];
+    let cashflow = [];
+    let parentSummary = {};
+    let privacyMode = false;
+    let isUnlocked = false;
+    let pinCode = '';
+    let activePin = '';
+    let currentCategory = 'all';
+    let projectionChartInstance = null;
+    let pillarChartInstance = null;
+
+    // BRUTE FORCE SECURITY CONFIGURATION
+    const ATTEMPTS_KEY = 'fintrack_failed_attempts_count';
+    const LOCKOUT_KEY = 'fintrack_lockout_until_timestamp';
+    const LOCAL_VAULT_KEY = 'fintrack_encrypted_vault_v2';
+    let lockoutInterval = null;
+
+    // -------------------------------------------------------------------------
+    // 2. CRYPTOGRAPHIC ENGINE (WEB CRYPTO API - AES-GCM + PBKDF2)
+    // -------------------------------------------------------------------------
+    async function deriveAesKey(pin, salt) {
+      const enc = new TextEncoder();
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(pin),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+      return await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function decryptVault(b64, pin) {
+      const binStr = atob(b64);
+      const combined = new Uint8Array(binStr.length);
+      for (let i = 0; i < binStr.length; i++) {
+        combined[i] = binStr.charCodeAt(i);
+      }
+      const salt = combined.slice(0, 16);
+      const iv = combined.slice(16, 28);
+      const ciphertext = combined.slice(28);
+
+      const key = await deriveAesKey(pin, salt);
+      const decrypted = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        ciphertext
+      );
+      const dec = new TextDecoder();
+      return JSON.parse(dec.decode(decrypted));
+    }
+
+    async function encryptVault(dataObj, pin) {
+      const enc = new TextEncoder();
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await deriveAesKey(pin, salt);
+      const plaintext = enc.encode(JSON.stringify(dataObj));
+      const ciphertext = await crypto.subtle.encrypt(
+        { name: 'AES-GCM', iv: iv },
+        key,
+        plaintext
+      );
+      const combined = new Uint8Array(16 + 12 + ciphertext.byteLength);
+      combined.set(salt, 0);
+      combined.set(iv, 16);
+      combined.set(new Uint8Array(ciphertext), 28);
+      
+      let binary = '';
+      for (let i = 0; i < combined.byteLength; i++) {
+        binary += String.fromCharCode(combined[i]);
+      }
+      return btoa(binary);
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. BRUTE FORCE LOCKOUT & TIMERS
+    // -------------------------------------------------------------------------
+    function checkLockout() {
+      const lockoutUntil = parseInt(localStorage.getItem(LOCKOUT_KEY) || '0', 10);
+      const now = Date.now();
+      if (lockoutUntil > now) {
+        startLockoutCountdown(lockoutUntil);
+        return true;
+      } else {
+        endLockout();
+        return false;
+      }
+    }
+
+    function startLockoutCountdown(lockoutUntil) {
+      const banner = document.getElementById('lockoutBanner');
+      const timerText = document.getElementById('lockoutTimerText');
+      const keypad = document.getElementById('keypadGrid');
+      const pinArea = document.getElementById('pinInputArea');
+      const btnSubmit = document.getElementById('btnSubmitPin');
+      const iconContainer = document.getElementById('lockIconContainer');
+
+      banner.classList.remove('hidden');
+      keypad.classList.add('pointer-events-none', 'opacity-30');
+      pinArea.classList.add('pointer-events-none', 'opacity-30');
+      btnSubmit.classList.add('pointer-events-none', 'opacity-30');
+
+      iconContainer.className = "mx-auto w-16 h-16 rounded-2xl bg-rose-600 flex items-center justify-center shadow-lg shadow-rose-600/30 transition-all";
+      document.getElementById('lockIcon').setAttribute('data-lucide', 'alert-triangle');
+      lucide.createIcons();
+
+      if (lockoutInterval) clearInterval(lockoutInterval);
+
+      function updateCountdown() {
+        const remainingMs = lockoutUntil - Date.now();
+        if (remainingMs <= 0) {
+          endLockout();
+        } else {
+          const totalSec = Math.ceil(remainingMs / 1000);
+          const mins = Math.floor(totalSec / 60);
+          const secs = totalSec % 60;
+          timerText.innerText = 'Silakan tunggu ' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }
+      }
+
+      updateCountdown();
+      lockoutInterval = setInterval(updateCountdown, 1000);
+    }
+
+    function endLockout() {
+      if (lockoutInterval) {
+        clearInterval(lockoutInterval);
+        lockoutInterval = null;
+      }
+      localStorage.removeItem(LOCKOUT_KEY);
+
+      document.getElementById('lockoutBanner').classList.add('hidden');
+      document.getElementById('keypadGrid').classList.remove('pointer-events-none', 'opacity-30');
+      document.getElementById('pinInputArea').classList.remove('pointer-events-none', 'opacity-30');
+      document.getElementById('btnSubmitPin').classList.remove('pointer-events-none', 'opacity-30');
+
+      const iconContainer = document.getElementById('lockIconContainer');
+      iconContainer.className = "mx-auto w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20 transition-all";
+      document.getElementById('lockIcon').setAttribute('data-lucide', 'shield-lock');
+      document.getElementById('lockError').innerText = '';
+      lucide.createIcons();
+    }
+
+    function recordFailedAttempt() {
+      let attempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || '0', 10) + 1;
+      localStorage.setItem(ATTEMPTS_KEY, attempts.toString());
+
+      let lockoutDurationSec = 0;
+      if (attempts === 3) lockoutDurationSec = 30;
+      else if (attempts === 4) lockoutDurationSec = 60;
+      else if (attempts === 5) lockoutDurationSec = 300;
+      else if (attempts === 6) lockoutDurationSec = 600;
+      else if (attempts >= 7 && attempts < 10) lockoutDurationSec = 900;
+      else if (attempts >= 10) lockoutDurationSec = 3600;
+
+      if (lockoutDurationSec > 0) {
+        const lockoutUntil = Date.now() + (lockoutDurationSec * 1000);
+        localStorage.setItem(LOCKOUT_KEY, lockoutUntil.toString());
+        startLockoutCountdown(lockoutUntil);
+      } else {
+        const remaining = 3 - attempts;
+        showLockError('PIN salah! Sisa percobaan sebelum dibekukan: ' + remaining);
+      }
+    }
+
+    function resetFailedAttempts() {
+      localStorage.removeItem(ATTEMPTS_KEY);
+      localStorage.removeItem(LOCKOUT_KEY);
+    }
+
+    // -------------------------------------------------------------------------
+    // 4. PIN KEYPAD INTERACTION & VERIFICATION
+    // -------------------------------------------------------------------------
+    function pressKey(k) {
+      if (checkLockout()) return;
+      if (pinCode.length < 6) {
+        pinCode += k;
+        updateDots();
+        if (pinCode.length === 6) {
+          submitPin();
+        }
+      }
+    }
+
+    function backspacePin() {
+      if (pinCode.length > 0) {
+        pinCode = pinCode.slice(0, -1);
+        updateDots();
+      }
+    }
+
+    function clearPin() {
+      pinCode = '';
+      updateDots();
+    }
+
+    function updateDots() {
+      const dots = document.querySelectorAll('#pinDots .dot');
+      dots.forEach((dot, idx) => {
+        if (idx < pinCode.length) {
+          dot.className = 'w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-blue-400 dot scale-110 shadow-sm shadow-blue-500/50 transition-all';
+        } else {
+          dot.className = 'w-3.5 h-3.5 rounded-full border-2 border-slate-600 dot transition-all';
+        }
+      });
+      document.getElementById('lockError').innerText = '';
+    }
+
+    function handlePinInput(val) {
+      pinCode = val.replace(/\D/g, '').slice(0, 6);
+      updateDots();
+      if (pinCode.length === 6) {
+        submitPin();
+      }
+    }
+
+    function showLockError(msg) {
+      const card = document.getElementById('lockCard');
+      card.classList.remove('shake');
+      void card.offsetWidth;
+      card.classList.add('shake');
+      document.getElementById('lockError').innerText = msg;
+    }
+
+    async function submitPin() {
+      if (checkLockout()) return;
+      if (pinCode.length !== 6) {
+        showLockError('Silakan masukkan 6 digit PIN lengkap.');
+        return;
+      }
+
+      const btnSubmit = document.getElementById('btnSubmitPin');
+      const btnText = document.getElementById('btnSubmitText');
+      btnText.innerText = 'Mendekripsi AES-256...';
+      btnSubmit.classList.add('opacity-70', 'pointer-events-none');
+
+      // Intentional delay for PBKDF2 & bot throttling
+      await new Promise(r => setTimeout(r, 200));
+
+      try {
+        const payloadToDecrypt = localStorage.getItem(LOCAL_VAULT_KEY) || INITIAL_ENCRYPTED_VAULT;
+        const vault = await decryptVault(payloadToDecrypt, pinCode);
+
+        // Verification check
+        if (!vault || !vault.loans) {
+          throw new Error('Invalid vault payload');
+        }
+
+        // SUCCESS!
+        activePin = pinCode;
+        loans = vault.loans;
+        cashflow = vault.cashflow || [];
+        parentSummary = vault.parentSummary || {};
+
+        resetFailedAttempts();
+        unlockApp();
+      } catch (err) {
+        console.warn('Decryption failed:', err);
+        clearPin();
+        recordFailedAttempt();
+      } finally {
+        btnText.innerText = 'Dekripsi & Buka Portofolio';
+        btnSubmit.classList.remove('opacity-70', 'pointer-events-none');
+      }
+    }
+
+    function unlockApp() {
+      isUnlocked = true;
+      document.getElementById('lockScreen').classList.add('hidden');
+      const app = document.getElementById('appContainer');
+      app.classList.remove('opacity-0', 'pointer-events-none');
+      app.classList.add('opacity-100');
+
+      renderDecryptedContent();
+      initCharts();
+      renderAll();
+      lucide.createIcons();
+    }
+
+    function lockApp() {
+      isUnlocked = false;
+      activePin = '';
+      clearPin();
+      document.getElementById('lockScreen').classList.remove('hidden');
+      const app = document.getElementById('appContainer');
+      app.classList.add('opacity-0', 'pointer-events-none');
+      app.classList.remove('opacity-100');
+      checkLockout();
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. DYNAMIC DOM RENDERING FROM DECRYPTED VAULT
+    // -------------------------------------------------------------------------
+    function renderDecryptedContent() {
+      if (parentSummary.topBanner) {
+        document.getElementById('topBannerText').innerText = parentSummary.topBanner;
+      }
+      if (parentSummary.mandiriSubtitle) {
+        document.getElementById('mandiriSubtitle').innerHTML = '<span class="text-rose-400 font-semibold">62,4%</span> ' + parentSummary.mandiriSubtitle;
+      }
+      if (parentSummary.mandiriShareText) {
+        document.getElementById('mandiriShare').innerText = parentSummary.mandiriShareText;
+      }
+      if (parentSummary.kkShareText) {
+        document.getElementById('kkShare').innerText = parentSummary.kkShareText;
+      }
+      if (parentSummary.fintechShareText) {
+        document.getElementById('fintechShare').innerText = parentSummary.fintechShareText;
+      }
+
+      // Render Mode Ortu Cards
+      const container = document.getElementById('parentModeCardsContainer');
+      if (container && parentSummary.cards) {
+        container.innerHTML = parentSummary.cards.map(c => `
+          <div class="bg-white border-2 border-${c.color}-200 rounded-2xl p-4 shadow-sm text-slate-900">
+            <div class="text-xs font-bold text-${c.color}-800 uppercase">${c.title}</div>
+            <div class="text-2xl font-black text-${c.color}-950 mt-1">${c.amount}</div>
+            <p class="text-xs text-slate-600 mt-1.5">${c.desc}</p>
+          </div>
+        `).join('');
+      }
+
+      // Render Mode Ortu Narrative
+      const narrativeBox = document.getElementById('parentModeNarrative');
+      if (narrativeBox && parentSummary.narrative) {
+        narrativeBox.innerHTML = `<p class="text-xs md:text-sm text-slate-300 leading-relaxed">${parentSummary.narrative}</p>`;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 6. SAVE & RE-ENCRYPT ON DATA CHANGE
+    // -------------------------------------------------------------------------
+    async function persistVault() {
+      if (!activePin) return;
+      try {
+        const vault = {
+          version: "2.0-zero-knowledge",
+          updatedAt: new Date().toISOString(),
+          loans: loans,
+          cashflow: cashflow,
+          parentSummary: parentSummary
+        };
+        const encryptedB64 = await encryptVault(vault, activePin);
+        localStorage.setItem(LOCAL_VAULT_KEY, encryptedB64);
+      } catch (e) {
+        console.error("Gagal mengenkripsi pembaruan:", e);
+      }
+    }
+
+    async function promptChangePin() {
+      const oldPin = prompt("Masukkan PIN lama Anda (6 digit):");
+      if (!oldPin) return;
+      if (oldPin !== activePin) {
+        alert("PIN lama tidak cocok!");
+        return;
+      }
+      const newPin = prompt("Masukkan PIN baru Anda (6 digit angka):");
+      if (!newPin || newPin.length !== 6 || !/^\d{6}$/.test(newPin)) {
+        alert("PIN baru harus persis 6 digit angka!");
+        return;
+      }
+      const confirmPin = prompt("Konfirmasi PIN baru Anda:");
+      if (newPin !== confirmPin) {
+        alert("Konfirmasi PIN tidak cocok!");
+        return;
+      }
+
+      activePin = newPin;
+      await persistVault();
+      alert("PIN Keamanan Vault berhasil diubah! Seluruh data telah dienkripsi ulang dengan PIN baru.");
+    }
+
+    function exportEncryptedVault() {
+      const payload = localStorage.getItem(LOCAL_VAULT_KEY) || INITIAL_ENCRYPTED_VAULT;
+      const blob = new Blob([payload], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'fintrack_vault_terenkripsi_aes256.b64';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function exportExcel() {
+      const dataForExport = loans.map((l, i) => ({
+        'No': i + 1,
+        'Platform': l.platform,
+        'Jatuh Tempo': l.jatuh_tempo,
+        'Pengajuan Pokok': l.pengajuan,
+        'Angsuran Bulanan': l.angsuran,
+        'Tenor Total': l.tempo,
+        'Sudah Dibayar (Bln)': l.sudah_di_bayar,
+        'Sudah Dibayar (Rp)': l.sudah_dibayar_rp,
+        'Sisa Utang': l.sisa,
+        'Sisa Tenor': l.sisa_tempo,
+        'Status': l.sisa === 0 ? 'LUNAS' : 'AKTIF'
+      }));
+      const ws = XLSX.utils.json_to_sheet(dataForExport);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Portofolio Utang");
+      XLSX.writeFile(wb, "portofolio_keuangan_ekspor.xlsx");
+    }
+
+    // -------------------------------------------------------------------------
+    // 7. FORMATTING & HELPERS
+    // -------------------------------------------------------------------------
+    function formatRupiah(num) {
+      if (privacyMode) return 'Rp ••••••••';
+      return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        maximumFractionDigits: 0
+      }).format(num);
+    }
+
+    function togglePrivacyMode() {
+      privacyMode = !privacyMode;
+      const icon = document.getElementById('privacyIcon');
+      if (privacyMode) {
+        icon.setAttribute('data-lucide', 'eye-off');
+      } else {
+        icon.setAttribute('data-lucide', 'eye');
+      }
+      lucide.createIcons();
+      renderAll();
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white');
+        btn.classList.add('bg-slate-800', 'text-slate-400');
+      });
+
+      const target = document.getElementById('tab-' + tabId);
+      if (target) target.classList.remove('hidden');
+
+      const btn = document.getElementById('tab-btn-' + tabId);
+      if (btn) {
+        btn.classList.remove('bg-slate-800', 'text-slate-400');
+        btn.classList.add('bg-blue-600', 'text-white');
+      }
+
+      if (tabId === 'overview') {
+        setTimeout(initCharts, 50);
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 8. RENDER ALL TABLES & KPIS
+    // -------------------------------------------------------------------------
+    function renderAll() {
+      renderKPIs();
+      renderLoansTable();
+      renderCashflowTable();
+    }
+
+    function renderKPIs() {
+      const totalSisa = loans.reduce((acc, l) => acc + (l.sisa || 0), 0);
+      const totalBayar = loans.reduce((acc, l) => acc + (l.sudah_dibayar_rp || 0), 0);
+      const totalKewajiban = loans.reduce((acc, l) => acc + (l.total || l.pengajuan || 0), 0);
+      const totalBungaBiaya = loans.reduce((acc, l) => acc + (l.total_bunga_biaya || l.bunga || 0), 0);
+      const progressPct = totalKewajiban > 0 ? ((totalBayar / totalKewajiban) * 100).toFixed(1) : 0;
+
+      document.getElementById('kpiSisaUtang').innerText = formatRupiah(totalSisa);
+      document.getElementById('kpiSudahBayar').innerText = formatRupiah(totalBayar);
+      document.getElementById('kpiBungaBiaya').innerText = formatRupiah(totalBungaBiaya);
+      document.getElementById('kpiProgressPct').innerText = progressPct + '%';
+
+      const activeCount = loans.filter(l => l.sisa > 0).length;
+      document.getElementById('badgeActiveCount').innerText = activeCount;
+      const mobBadge = document.getElementById('mobBadgeCount');
+      if (mobBadge) mobBadge.innerText = activeCount;
+    }
+
+    function renderLoansTable() {
+      const tbody = document.getElementById('loansTableBody');
+      const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
+
+      let filtered = loans.filter(l => {
+        const matchesQuery = l.platform.toLowerCase().includes(query) || 
+                             String(l.jatuh_tempo).includes(query) ||
+                             String(l.sisa).includes(query);
+        if (!matchesQuery) return false;
+
+        if (currentCategory === 'mandiri') return l.platform.toLowerCase().includes('mandiri');
+        if (currentCategory === 'kk') return l.platform.toLowerCase().startsWith('kk');
+        if (currentCategory === 'fintech1m') return l.tempo === 1 && !l.platform.toLowerCase().includes('kk');
+        if (currentCategory === 'fintech_cicil') return l.tempo > 1 && !l.platform.toLowerCase().includes('mandiri');
+        if (currentCategory === 'lunas') return l.sisa === 0;
+        return true;
+      });
+
+      tbody.innerHTML = filtered.map((l, idx) => {
+        const isLunas = l.sisa === 0;
+        return `
+          <tr class="hover:bg-slate-800/40 transition-colors ${isLunas ? 'opacity-40 bg-emerald-950/10' : ''}">
+            <td class="py-3 px-4 text-slate-500 font-mono">${idx + 1}</td>
+            <td class="py-3 px-4 font-bold text-white uppercase flex items-center gap-2">
+              <span>${l.platform}</span>
+              ${isLunas ? '<span class="text-[9px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-400 font-bold">LUNAS</span>' : ''}
+            </td>
+            <td class="py-3 px-4 text-slate-300">
+              <span class="px-2 py-0.5 rounded bg-slate-800 font-mono text-[11px]">Tgl ${l.jatuh_tempo}</span>
+            </td>
+            <td class="py-3 px-4 text-right text-slate-300 font-mono">${formatRupiah(l.pengajuan)}</td>
+            <td class="py-3 px-4 text-right font-bold text-slate-200 font-mono">${formatRupiah(l.angsuran)}</td>
+            <td class="py-3 px-4 text-center font-mono">
+              <span class="text-blue-400 font-bold">${l.sisa_tempo}</span> / ${l.tempo} bln
+            </td>
+            <td class="py-3 px-4 text-right font-extrabold ${isLunas ? 'text-emerald-400' : 'text-rose-400'} font-mono">
+              ${formatRupiah(l.sisa)}
+            </td>
+            <td class="py-3 px-4 text-center">
+              ${isLunas 
+                ? '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400">Tuntas</span>'
+                : '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-400">Berjalan</span>'
+              }
+            </td>
+            <td class="py-3 px-4 text-center">
+              ${!isLunas ? `
+                <button onclick="quickPayLoan(${l.id})" class="px-2.5 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all">
+                  Bayar 1x
+                </button>
+              ` : '<span class="text-slate-600 text-[11px]">-</span>'}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderCashflowTable() {
+      const tbody = document.getElementById('cashflowTableBody');
+      if (!tbody) return;
+
+      tbody.innerHTML = cashflow.map(cf => {
+        const isMasuk = cf.type === 'masuk';
+        return `
+          <tr class="hover:bg-slate-800/40 transition-colors">
+            <td class="py-3 px-4 font-mono text-slate-400">${cf.date}</td>
+            <td class="py-3 px-4 text-white font-medium">${cf.desc}</td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isMasuk ? 'bg-emerald-500/20 text-emerald-300' : 'bg-slate-800 text-slate-300'}">
+                ${cf.cat}
+              </span>
+            </td>
+            <td class="py-3 px-4 text-right font-mono font-bold ${isMasuk ? 'text-emerald-400' : 'text-rose-400'}">
+              ${isMasuk ? '+' : ''}${formatRupiah(cf.amount)}
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function setCategoryFilter(cat) {
+      currentCategory = cat;
+      document.querySelectorAll('.cat-chip').forEach(btn => {
+        btn.classList.remove('bg-blue-600', 'text-white', 'active');
+        btn.classList.add('bg-slate-800', 'text-slate-400');
+      });
+      event.target.classList.remove('bg-slate-800', 'text-slate-400');
+      event.target.classList.add('bg-blue-600', 'text-white', 'active');
+      renderLoansTable();
+    }
+
+    function filterLoansTable() {
+      renderLoansTable();
+    }
+
+    async function quickPayLoan(id) {
+      const loan = loans.find(l => l.id === id);
+      if (!loan || loan.sisa <= 0) return;
+
+      if (!confirm('Catat pembayaran 1 bulan untuk ' + loan.platform.toUpperCase() + ' (Nominal: ' + formatRupiah(loan.angsuran) + ')?')) return;
+
+      loan.sudah_di_bayar = (loan.sudah_di_bayar || 0) + 1;
+      loan.sudah_dibayar_rp = (loan.sudah_dibayar_rp || 0) + loan.angsuran;
+      loan.sisa = Math.max(0, loan.sisa - loan.angsuran);
+      loan.sisa_tempo = Math.max(0, loan.sisa_tempo - 1);
+
+      cashflow.unshift({
+        date: new Date().toISOString().split('T')[0],
+        desc: 'Pembayaran Angsuran: ' + loan.platform,
+        cat: 'Cicilan Berjalan',
+        amount: -loan.angsuran,
+        type: 'keluar'
+      });
+
+      await persistVault();
+      renderAll();
+      initCharts();
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. CHARTS INITIALIZATION
+    // -------------------------------------------------------------------------
+    function initCharts() {
+      // 1. Proyeksi Angsuran Chart
+      const projCtx = document.getElementById('projectionChart')?.getContext('2d');
+      if (projCtx) {
+        if (projectionChartInstance) projectionChartInstance.destroy();
+
+        const labels = ['Nov 26', 'Des 26', 'Jan 27', 'Feb 27', 'Mar 27', 'Apr 27', 'Mei 27', 'Jun 27', 'Jul 27', 'Agu 27', 'Sep 27', 'Okt 27', 'Nov 27', 'Des 27'];
+        const values = [52.1, 48.3, 44.2, 40.8, 37.5, 33.2, 28.9, 22.1, 18.5, 12.4, 9.8, 8.2, 7.6, 7.6];
+
+        projectionChartInstance = new Chart(projCtx, {
+          type: 'line',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: 'Beban Angsuran Bulanan (Juta Rp)',
+              data: values,
+              borderColor: '#3b82f6',
+              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              fill: true,
+              tension: 0.35,
+              pointBackgroundColor: '#60a5fa',
+              pointRadius: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+              y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8', callback: v => v + ' Jt' } }
+            }
+          }
+        });
+      }
+
+      // 2. Pillar Chart
+      const pillarCtx = document.getElementById('pillarChart')?.getContext('2d');
+      if (pillarCtx) {
+        if (pillarChartInstance) pillarChartInstance.destroy();
+
+        const mandiriTotal = loans.filter(l => l.platform.toLowerCase().includes('mandiri')).reduce((a, b) => a + b.sisa, 0);
+        const kkTotal = loans.filter(l => l.platform.toLowerCase().startsWith('kk')).reduce((a, b) => a + b.sisa, 0);
+        const fintechTotal = loans.filter(l => !l.platform.toLowerCase().includes('mandiri') && !l.platform.toLowerCase().startsWith('kk')).reduce((a, b) => a + b.sisa, 0);
+
+        pillarChartInstance = new Chart(pillarCtx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Bank Mandiri', 'Kartu Kredit', 'Fintech & Paylater'],
+            datasets: [{
+              data: [mandiriTotal, kkTotal, fintechTotal],
+              backgroundColor: ['#3b82f6', '#f59e0b', '#f43f5e'],
+              borderWidth: 0
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            cutout: '70%'
+          }
+        });
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // 10. MODAL UTANG BARU
+    // -------------------------------------------------------------------------
+    function openLoanModal() {
+      document.getElementById('loanModal').classList.remove('hidden');
+    }
+    function closeLoanModal() {
+      document.getElementById('loanModal').classList.add('hidden');
+    }
+    async function saveLoan(e) {
+      e.preventDefault();
+      const platform = document.getElementById('loanPlatform').value;
+      const tempo = parseInt(document.getElementById('loanTempoDate').value);
+      const pengajuan = parseFloat(document.getElementById('loanPengajuan').value);
+      const angsuran = parseFloat(document.getElementById('loanAngsuran').value);
+      const tenorTotal = parseInt(document.getElementById('loanTenorTotal').value);
+      const sudahBulan = parseInt(document.getElementById('loanSudahBayarBulan').value);
+      const sudahNominal = parseFloat(document.getElementById('loanSudahBayar').value);
+
+      const totalKewajiban = angsuran * tenorTotal;
+      const sisaUtang = Math.max(0, totalKewajiban - sudahNominal);
+      const sisaTempo = Math.max(0, tenorTotal - sudahBulan);
+
+      const newLoan = {
+        id: Date.now(),
+        platform: platform,
+        jatuh_tempo: tempo,
+        pengajuan: pengajuan,
+        angsuran: angsuran,
+        tempo: tenorTotal,
+        total: totalKewajiban,
+        bunga: totalKewajiban - pengajuan,
+        total_bunga_biaya: totalKewajiban - pengajuan,
+        sudah_di_bayar: sudahBulan,
+        sudah_dibayar_rp: sudahNominal,
+        sisa: sisaUtang,
+        sisa_tempo: sisaTempo
+      };
+
+      loans.push(newLoan);
+      await persistVault();
+      closeLoanModal();
+      renderAll();
+      initCharts();
+    }
+
+    // -------------------------------------------------------------------------
+    // 11. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
+    // -------------------------------------------------------------------------
+    function openExecutiveReportModal(type) {
+      const modal = document.getElementById('execReportModal');
+      const title = document.getElementById('execReportTitle');
+      const content = document.getElementById('execReportContent');
+
+      if (type === 'lengkap') {
+        title.innerText = 'Laporan Eksekutif Keuangan Keluarga (Versi Lengkap)';
+      } else {
+        title.innerText = 'Laporan Eksekutif Keuangan (Khusus Penertiban Pinjol)';
+      }
+
+      if (parentSummary.reports && parentSummary.reports[type]) {
+        content.innerHTML = parentSummary.reports[type];
+      } else {
+        content.innerHTML = '<p class="text-slate-400">Memuat laporan dari brankas terenkripsi...</p>';
+      }
+
+      modal.classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    function closeExecutiveReportModal() {
+      document.getElementById('execReportModal').classList.add('hidden');
+    }
+
+    // -------------------------------------------------------------------------
+    // 12. INITIAL BOOTSTRAP
+    // -------------------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      checkLockout();
+      document.getElementById('pinInput').focus();
+    });
+  </script>
+</body>
+</html>
