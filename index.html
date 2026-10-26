@@ -211,7 +211,7 @@
               <i data-lucide="shield" class="w-4 h-4 text-emerald-400"></i>
               <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
             </button>
-            <div class="absolute right-0 mt-1.5 w-56 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 hidden group-hover:block z-50">
+            <div class="absolute right-0 mt-1.5 w-60 bg-slate-900 border border-slate-800 rounded-xl shadow-xl py-1 hidden group-hover:block z-50">
               <button onclick="promptChangePin()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
                 <i data-lucide="key" class="w-3.5 h-3.5 text-amber-400"></i> Ganti PIN Vault
               </button>
@@ -220,6 +220,10 @@
               </button>
               <button onclick="exportExcel()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
                 <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-blue-400"></i> Ekspor Excel (.xlsx)
+              </button>
+              <div class="border-t border-slate-800 my-1"></div>
+              <button onclick="resetToInitialBaseline()" class="w-full text-left px-3 py-2 text-xs text-amber-400 hover:bg-amber-500/10 flex items-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> Reset Data ke Awal (26 Okt)
               </button>
               <div class="border-t border-slate-800 my-1"></div>
               <button onclick="lockApp()" class="w-full text-left px-3 py-2 text-xs text-rose-400 hover:bg-rose-500/10 flex items-center gap-2">
@@ -397,7 +401,7 @@
                   <th class="py-3 px-4 text-center">Tenor Sisa</th>
                   <th class="py-3 px-4 text-right">Sisa Utang</th>
                   <th class="py-3 px-4 text-center">Status</th>
-                  <th class="py-3 px-4 text-center">Aksi Cepat</th>
+                  <th class="py-3 px-4 text-center">Aksi Cepat & Edit</th>
                 </tr>
               </thead>
               <tbody id="loansTableBody" class="divide-y divide-slate-800/60 font-medium"></tbody>
@@ -524,10 +528,10 @@
   </div>
 
   <!-- ========================================================================= -->
-  <!-- MODAL 1: TAMBAH / EDIT UTANG -->
+  <!-- MODAL 1: TAMBAH / EDIT FASILITAS UTANG -->
   <!-- ========================================================================= -->
-  <div id="loanModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+  <div id="loanModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4 my-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="font-bold text-sm text-white" id="modalLoanTitle">Tambah Fasilitas Baru</h3>
         <button onclick="closeLoanModal()" class="text-slate-400 hover:text-white"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -540,7 +544,7 @@
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-slate-400 mb-1">Tanggal Jatuh Tempo</label>
+            <label class="block text-slate-400 mb-1">Tanggal Jatuh Tempo (1-31)</label>
             <input type="number" id="loanTempoDate" min="1" max="31" required placeholder="1 - 31" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
           </div>
           <div>
@@ -568,9 +572,14 @@
             <input type="number" id="loanSudahBayar" min="0" required class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
           </div>
         </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Sisa Utang Riil (Rp) - Opsional / Koreksi Langsung</label>
+          <input type="number" id="loanSisaCustom" min="0" placeholder="Kosongkan jika ingin dihitung otomatis" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-white focus:outline-none focus:border-blue-500">
+          <p class="text-[10px] text-slate-500 mt-1">Isi jika Anda ingin memasukkan angka sisa utang eksak dari aplikasi.</p>
+        </div>
         <div class="pt-3 flex justify-end gap-2">
           <button type="button" onclick="closeLoanModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-300">Batal</button>
-          <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-md shadow-blue-600/30">Simpan Data</button>
+          <button type="submit" id="btnSaveLoan" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold text-white shadow-md shadow-blue-600/30">Simpan Data</button>
         </div>
       </form>
     </div>
@@ -1133,6 +1142,20 @@
       alert("PIN Keamanan Vault berhasil diubah! Seluruh data telah dienkripsi ulang dengan PIN baru.");
     }
 
+    async function resetToInitialBaseline() {
+      if (!confirm('PERINGATAN: Apakah Anda yakin ingin mengembalikan seluruh data utang ke kondisi awal tanggal 26 Oktober? Seluruh perubahan input lokal akan di-reset.')) {
+        return;
+      }
+      localStorage.removeItem(LOCAL_VAULT_KEY);
+      const vault = await decryptVault(INITIAL_ENCRYPTED_VAULT, activePin);
+      loans = vault.loans;
+      cashflow = vault.cashflow || [];
+      parentSummary = vault.parentSummary || {};
+      renderAll();
+      initCharts();
+      alert('Data berhasil di-reset ke kondisi awal.');
+    }
+
     function exportEncryptedVault() {
       const payload = localStorage.getItem(LOCAL_VAULT_KEY) || INITIAL_ENCRYPTED_VAULT;
       const blob = new Blob([payload], { type: 'text/plain' });
@@ -1284,16 +1307,28 @@
               }
             </td>
             <td class="py-3 px-4 text-center">
-              ${!isLunas ? `
-                <div class="flex items-center justify-center gap-1.5">
-                  <button onclick="openPartialPayModal(${l.id})" class="px-2.5 py-1 rounded-lg ${isCreditCard ? 'bg-amber-600 hover:bg-amber-500 text-white shadow-sm shadow-amber-600/30' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} text-[11px] font-bold transition-all flex items-center gap-1">
-                    <i data-lucide="calculator" class="w-3 h-3"></i> Bayar Sebagian
-                  </button>
-                  <button onclick="quickPayLoan(${l.id})" class="px-2 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all" title="Bayar Penuh / 1x Angsuran">
-                    ${l.tempo === 1 ? 'Lunas' : '1x'}
-                  </button>
-                </div>
-              ` : '<span class="text-slate-600 text-[11px]">-</span>'}
+              <div class="flex items-center justify-center gap-1.5">
+                ${!isLunas ? `
+                  ${isCreditCard ? `
+                    <button onclick="openPartialPayModal(${l.id})" class="px-2.5 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-[11px] font-bold transition-all flex items-center gap-1 shadow-sm" title="Bayar Sebagian & Bunga">
+                      <i data-lucide="calculator" class="w-3 h-3"></i> Bayar Sebagian
+                    </button>
+                  ` : `
+                    <button onclick="quickPayLoan(${l.id})" class="px-2 py-1 rounded-lg bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] font-bold transition-all" title="Bayar Penuh / 1x Angsuran">
+                      ${l.tempo === 1 ? 'Lunas' : '1x'}
+                    </button>
+                  `}
+                ` : '<span class="text-emerald-400 font-bold text-[10px] px-2 py-0.5 rounded bg-emerald-500/10">Lunas</span>'}
+
+                <!-- Edit Button -->
+                <button onclick="editLoan(${l.id})" class="p-1.5 rounded-lg bg-slate-800 hover:bg-blue-600 text-slate-400 hover:text-white transition-all" title="Edit Data Fasilitas Ini">
+                  <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                </button>
+                <!-- Delete Button -->
+                <button onclick="deleteLoan(${l.id})" class="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-600 text-slate-400 hover:text-white transition-all" title="Hapus Fasilitas Ini">
+                  <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                </button>
+              </div>
             </td>
           </tr>
         `;
@@ -1602,49 +1637,125 @@
     }
 
     // -------------------------------------------------------------------------
-    // 11. MODAL UTANG BARU
+    // 11. MODAL TAMBAH & EDIT FASILITAS
     // -------------------------------------------------------------------------
     function openLoanModal() {
+      document.getElementById('modalLoanTitle').innerText = 'Tambah Fasilitas Baru';
+      document.getElementById('btnSaveLoan').innerText = 'Tambah Fasilitas';
+      document.getElementById('loanId').value = '';
+      document.getElementById('loanPlatform').value = '';
+      document.getElementById('loanTempoDate').value = '';
+      document.getElementById('loanPengajuan').value = '';
+      document.getElementById('loanAngsuran').value = '';
+      document.getElementById('loanTenorTotal').value = '';
+      document.getElementById('loanSudahBayarBulan').value = '0';
+      document.getElementById('loanSudahBayar').value = '0';
+      document.getElementById('loanSisaCustom').value = '';
       document.getElementById('loanModal').classList.remove('hidden');
     }
+
+    function editLoan(id) {
+      const loan = loans.find(l => l.id === id);
+      if (!loan) return;
+
+      document.getElementById('modalLoanTitle').innerText = 'Edit Data: ' + loan.platform.toUpperCase();
+      document.getElementById('btnSaveLoan').innerText = 'Simpan Perubahan';
+      document.getElementById('loanId').value = loan.id;
+      document.getElementById('loanPlatform').value = loan.platform;
+      document.getElementById('loanTempoDate').value = loan.jatuh_tempo || '';
+      document.getElementById('loanPengajuan').value = loan.pengajuan || 0;
+      document.getElementById('loanAngsuran').value = loan.angsuran || 0;
+      document.getElementById('loanTenorTotal').value = loan.tempo || 1;
+      document.getElementById('loanSudahBayarBulan').value = loan.sudah_di_bayar || 0;
+      document.getElementById('loanSudahBayar').value = loan.sudah_dibayar_rp || 0;
+      document.getElementById('loanSisaCustom').value = loan.sisa || 0;
+
+      document.getElementById('loanModal').classList.remove('hidden');
+      lucide.createIcons();
+    }
+
+    async function deleteLoan(id) {
+      const loan = loans.find(l => l.id === id);
+      if (!loan) return;
+
+      if (!confirm('Apakah Anda yakin ingin MENGHAPUS fasilitas "' + loan.platform.toUpperCase() + '" dari portofolio? Data ini akan dihapus permanen dari brankas.')) {
+        return;
+      }
+
+      loans = loans.filter(l => l.id !== id);
+      await persistVault();
+      renderAll();
+      initCharts();
+      alert('Fasilitas berhasil dihapus.');
+    }
+
     function closeLoanModal() {
       document.getElementById('loanModal').classList.add('hidden');
     }
+
     async function saveLoan(e) {
       e.preventDefault();
-      const platform = document.getElementById('loanPlatform').value;
-      const tempo = parseInt(document.getElementById('loanTempoDate').value);
-      const pengajuan = parseFloat(document.getElementById('loanPengajuan').value);
-      const angsuran = parseFloat(document.getElementById('loanAngsuran').value);
-      const tenorTotal = parseInt(document.getElementById('loanTenorTotal').value);
-      const sudahBulan = parseInt(document.getElementById('loanSudahBayarBulan').value);
-      const sudahNominal = parseFloat(document.getElementById('loanSudahBayar').value);
+      const idVal = document.getElementById('loanId').value;
+      const platform = document.getElementById('loanPlatform').value.trim();
+      const tempo = parseInt(document.getElementById('loanTempoDate').value) || 1;
+      const pengajuan = parseFloat(document.getElementById('loanPengajuan').value) || 0;
+      const angsuran = parseFloat(document.getElementById('loanAngsuran').value) || 0;
+      const tenorTotal = parseInt(document.getElementById('loanTenorTotal').value) || 1;
+      const sudahBulan = parseInt(document.getElementById('loanSudahBayarBulan').value) || 0;
+      const sudahNominal = parseFloat(document.getElementById('loanSudahBayar').value) || 0;
+      const sisaCustom = document.getElementById('loanSisaCustom').value;
 
       const totalKewajiban = angsuran * tenorTotal;
-      const sisaUtang = Math.max(0, totalKewajiban - sudahNominal);
+      let sisaUtang = sisaCustom !== '' ? parseFloat(sisaCustom) : Math.max(0, totalKewajiban - sudahNominal);
       const sisaTempo = Math.max(0, tenorTotal - sudahBulan);
+      const bungaTotal = Math.max(0, totalKewajiban - pengajuan);
 
-      const newLoan = {
-        id: Date.now(),
-        platform: platform,
-        jatuh_tempo: tempo,
-        pengajuan: pengajuan,
-        angsuran: angsuran,
-        tempo: tenorTotal,
-        total: totalKewajiban,
-        bunga: totalKewajiban - pengajuan,
-        total_bunga_biaya: totalKewajiban - pengajuan,
-        sudah_di_bayar: sudahBulan,
-        sudah_dibayar_rp: sudahNominal,
-        sisa: sisaUtang,
-        sisa_tempo: sisaTempo
-      };
+      if (idVal) {
+        // Edit existing loan
+        const existingIndex = loans.findIndex(l => String(l.id) === String(idVal));
+        if (existingIndex !== -1) {
+          loans[existingIndex] = {
+            ...loans[existingIndex],
+            platform: platform,
+            jatuh_tempo: tempo,
+            pengajuan: pengajuan,
+            angsuran: angsuran,
+            tempo: tenorTotal,
+            total: totalKewajiban,
+            bunga: bungaTotal,
+            total_bunga_biaya: bungaTotal,
+            sudah_di_bayar: sudahBulan,
+            sudah_dibayar_rp: sudahNominal,
+            sisa: sisaUtang,
+            sisa_tempo: sisaTempo
+          };
+        }
+      } else {
+        // Add new loan
+        const newLoan = {
+          id: Date.now(),
+          platform: platform,
+          jatuh_tempo: tempo,
+          pengajuan: pengajuan,
+          angsuran: angsuran,
+          tempo: tenorTotal,
+          total: totalKewajiban,
+          bunga: bungaTotal,
+          total_bunga_biaya: bungaTotal,
+          sudah_di_bayar: sudahBulan,
+          sudah_dibayar_rp: sudahNominal,
+          sisa: sisaUtang,
+          sisa_tempo: sisaTempo
+        };
+        loans.push(newLoan);
+      }
 
-      loans.push(newLoan);
       await persistVault();
       closeLoanModal();
       renderAll();
       initCharts();
+
+      alert(idVal ? 'Data fasilitas berhasil diperbarui!' : 'Fasilitas baru berhasil ditambahkan!');
     }
 
     // -------------------------------------------------------------------------
