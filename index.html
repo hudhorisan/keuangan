@@ -387,6 +387,34 @@
           </div>
         </div>
 
+        <!-- MULTI-CHECK PROVIDER FILTER PANEL -->
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-lg space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+            <div class="flex items-center gap-2">
+              <i data-lucide="layers" class="w-4 h-4 text-blue-400"></i>
+              <h4 class="font-bold text-xs uppercase tracking-wider text-white">Filter Multi-Check Penyedia Layanan</h4>
+            </div>
+            <div class="flex items-center gap-2 text-xs">
+              <button onclick="selectAllProviders(true)" class="px-2.5 py-1 rounded-lg bg-blue-600/30 hover:bg-blue-600 text-blue-300 hover:text-white font-bold transition-all text-[11px] flex items-center gap-1">
+                <i data-lucide="check-square" class="w-3 h-3"></i> Pilih Semua
+              </button>
+              <button onclick="selectAllProviders(false)" class="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-bold transition-all text-[11px] flex items-center gap-1">
+                <i data-lucide="square" class="w-3 h-3"></i> Hapus Semua
+              </button>
+            </div>
+          </div>
+
+          <!-- Provider Checkboxes Grid -->
+          <div id="providerFilterGrid" class="flex flex-wrap gap-1.5 pt-1">
+            <!-- Rendered dynamically -->
+          </div>
+
+          <!-- Selected Providers Stats Bar -->
+          <div id="providerFilterStats" class="pt-2 border-t border-slate-800/80">
+            <!-- Stats rendered dynamically -->
+          </div>
+        </div>
+
         <!-- Loans Table -->
         <div class="bg-slate-900 border border-slate-800 rounded-2xl shadow-lg overflow-hidden">
           <div class="overflow-x-auto custom-scroll">
@@ -844,6 +872,7 @@
     let pillarChartInstance = null;
     let currentPpLoanId = null;
     let currentPpSelectedTenor = 12;
+    let selectedProviders = new Set();
 
     // BRUTE FORCE SECURITY CONFIGURATION
     const ATTEMPTS_KEY = 'fintrack_failed_attempts_count';
@@ -1120,6 +1149,7 @@
       app.classList.add('opacity-100');
 
       renderDecryptedContent();
+      initProviderFilters();
       initCharts();
       renderAll();
       lucide.createIcons();
@@ -1227,6 +1257,8 @@
       loans = vault.loans;
       cashflow = vault.cashflow || [];
       parentSummary = vault.parentSummary || {};
+      selectedProviders.clear();
+      initProviderFilters();
       renderAll();
       initCharts();
       alert('Data berhasil di-reset ke kondisi awal.');
@@ -1309,10 +1341,111 @@
     }
 
     // -------------------------------------------------------------------------
-    // 8. RENDER ALL TABLES & KPIS
+    // 8. MULTI-CHECK PROVIDER FILTER ENGINE
+    // -------------------------------------------------------------------------
+    function getUniqueProviders() {
+      const map = new Map();
+      loans.forEach(l => {
+        const raw = (l.platform || '').trim();
+        const key = raw.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, { name: raw, count: 0, sisa: 0, angsuran: 0 });
+        }
+        const item = map.get(key);
+        item.count += 1;
+        item.sisa += (l.sisa || 0);
+        item.angsuran += (l.angsuran || 0);
+      });
+      return Array.from(map.values()).sort((a, b) => b.sisa - a.sisa);
+    }
+
+    function initProviderFilters() {
+      const providers = getUniqueProviders();
+      // Initially select all providers
+      selectedProviders.clear();
+      providers.forEach(p => selectedProviders.add(p.name.toLowerCase()));
+      renderProviderFilterUI();
+    }
+
+    function renderProviderFilterUI() {
+      const container = document.getElementById('providerFilterGrid');
+      if (!container) return;
+
+      const providers = getUniqueProviders();
+
+      container.innerHTML = providers.map(p => {
+        const key = p.name.toLowerCase();
+        const isChecked = selectedProviders.has(key);
+
+        return `
+          <label class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer select-none transition-all ${
+            isChecked 
+              ? 'bg-blue-600/25 border-blue-500/50 text-white shadow-sm' 
+              : 'bg-slate-950/80 border-slate-800/80 text-slate-500 hover:text-slate-300'
+          }">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleProviderFilter('${key}')"
+                   class="rounded bg-slate-900 border-slate-700 text-blue-500 focus:ring-0 w-3.5 h-3.5">
+            <span class="uppercase text-[11px] tracking-tight">${p.name}</span>
+            <span class="text-[10px] px-1.5 py-0.2 rounded-full font-mono ${
+              isChecked ? 'bg-blue-500/30 text-blue-200' : 'bg-slate-800 text-slate-600'
+            }">
+              ${p.count}
+            </span>
+          </label>
+        `;
+      }).join('');
+
+      // Update aggregate stats for selected providers
+      const selectedLoans = loans.filter(l => selectedProviders.has((l.platform || '').toLowerCase().trim()));
+      const totalSelectedSisa = selectedLoans.reduce((a, b) => a + (b.sisa || 0), 0);
+      const totalSelectedAngsuran = selectedLoans.reduce((a, b) => a + (b.angsuran || 0), 0);
+
+      const statsEl = document.getElementById('providerFilterStats');
+      if (statsEl) {
+        statsEl.innerHTML = `
+          <div class="flex items-center justify-between text-xs flex-wrap gap-2 text-slate-400">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span>Terpilih: <strong class="text-white">${selectedProviders.size}</strong> dari ${providers.length} Penyedia</span>
+              <span>&bull;</span>
+              <span>Fasilitas: <strong class="text-blue-400 font-mono">${selectedLoans.length}</strong></span>
+            </div>
+            <div class="flex items-center gap-3 font-mono text-[11px] flex-wrap">
+              <span>Total Sisa: <strong class="text-rose-400">${formatRupiah(totalSelectedSisa)}</strong></span>
+              <span>&bull;</span>
+              <span>Beban Angsuran/Bln: <strong class="text-amber-300">${formatRupiah(totalSelectedAngsuran)}</strong></span>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    function toggleProviderFilter(key) {
+      if (selectedProviders.has(key)) {
+        selectedProviders.delete(key);
+      } else {
+        selectedProviders.add(key);
+      }
+      renderProviderFilterUI();
+      renderLoansTable();
+    }
+
+    function selectAllProviders(selectAll) {
+      const providers = getUniqueProviders();
+      if (selectAll) {
+        providers.forEach(p => selectedProviders.add(p.name.toLowerCase()));
+      } else {
+        selectedProviders.clear();
+      }
+      renderProviderFilterUI();
+      renderLoansTable();
+    }
+
+    // -------------------------------------------------------------------------
+    // 9. RENDER ALL TABLES & KPIS
     // -------------------------------------------------------------------------
     function renderAll() {
       renderKPIs();
+      renderProviderFilterUI();
       renderLoansTable();
       renderCashflowTable();
     }
@@ -1347,11 +1480,20 @@
       const query = (document.getElementById('searchInput')?.value || '').toLowerCase();
 
       let filtered = loans.filter(l => {
+        const pKey = (l.platform || '').toLowerCase().trim();
+
+        // 1. Multi-Check Provider Filter
+        if (selectedProviders.size > 0 && !selectedProviders.has(pKey)) {
+          return false;
+        }
+
+        // 2. Search Query Filter
         const matchesQuery = l.platform.toLowerCase().includes(query) || 
                              String(l.jatuh_tempo).includes(query) ||
                              String(l.sisa).includes(query);
         if (!matchesQuery) return false;
 
+        // 3. Category Filter
         if (currentCategory === 'mandiri') return l.platform.toLowerCase().includes('mandiri');
         if (currentCategory === 'kk') return l.platform.toLowerCase().startsWith('kk');
         if (currentCategory === 'fintech1m') return l.tempo === 1 && !l.platform.toLowerCase().includes('kk');
@@ -1489,7 +1631,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 9. PARTIAL PAYMENT & CC INTEREST SIMULATOR (MODAL 3)
+    // 10. PARTIAL PAYMENT & CC INTEREST SIMULATOR (MODAL 3)
     // -------------------------------------------------------------------------
     function openPartialPayModal(loanId) {
       const loan = loans.find(l => l.id === loanId);
@@ -1654,7 +1796,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 10. MODAL MUTASI KAS DINGIN (PEMBELIAN BARANG / TAMBAHAN DANA)
+    // 11. MODAL MUTASI KAS DINGIN (PEMBELIAN BARANG / TAMBAHAN DANA)
     // -------------------------------------------------------------------------
     function openCashModal(defaultType) {
       const type = defaultType || 'keluar';
@@ -1737,7 +1879,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 11. CHARTS INITIALIZATION
+    // 12. CHARTS INITIALIZATION
     // -------------------------------------------------------------------------
     function initCharts() {
       // 1. Proyeksi Angsuran Chart
@@ -1809,7 +1951,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 12. MODAL TAMBAH & EDIT FASILITAS
+    // 13. MODAL TAMBAH & EDIT FASILITAS
     // -------------------------------------------------------------------------
     function openLoanModal() {
       document.getElementById('modalLoanTitle').innerText = 'Tambah Fasilitas Baru';
@@ -1856,6 +1998,7 @@
 
       loans = loans.filter(l => l.id !== id);
       await persistVault();
+      initProviderFilters();
       renderAll();
       initCharts();
       alert('Fasilitas berhasil dihapus.');
@@ -1924,6 +2067,7 @@
 
       await persistVault();
       closeLoanModal();
+      initProviderFilters();
       renderAll();
       initCharts();
 
@@ -1931,7 +2075,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 13. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
+    // 14. IN-APP INTERACTIVE EXECUTIVE REPORT FOR PARENTS
     // -------------------------------------------------------------------------
     function openExecutiveReportModal(type) {
       const modal = document.getElementById('execReportModal');
@@ -1959,7 +2103,7 @@
     }
 
     // -------------------------------------------------------------------------
-    // 14. INITIAL BOOTSTRAP
+    // 15. INITIAL BOOTSTRAP
     // -------------------------------------------------------------------------
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
