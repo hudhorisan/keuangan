@@ -133,6 +133,12 @@
           <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
           <span>Zero-Knowledge AES-256 + Anti Brute Force Aktif</span>
         </div>
+        <div class="pt-2 border-t border-slate-800/80">
+          <button onclick="triggerImportVault()" class="text-xs text-slate-400 hover:text-indigo-400 transition-colors flex items-center justify-center gap-1.5 mx-auto py-1 px-3 rounded-lg hover:bg-slate-800/50">
+            <i data-lucide="upload" class="w-3.5 h-3.5 text-indigo-400"></i>
+            <span>Punya backup dari HP / Laptop lain? Pulihkan file</span>
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -217,6 +223,9 @@
               </button>
               <button onclick="exportEncryptedVault()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
                 <i data-lucide="lock" class="w-3.5 h-3.5 text-emerald-400"></i> Unduh Vault Terenkripsi
+              </button>
+              <button onclick="triggerImportVault()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
+                <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-indigo-400"></i> Pulihkan / Import Vault (.b64)
               </button>
               <button onclick="exportExcel()" class="w-full text-left px-3 py-2 text-xs text-slate-300 hover:bg-slate-800 flex items-center gap-2">
                 <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-blue-400"></i> Ekspor Excel (.xlsx)
@@ -1275,6 +1284,79 @@
       URL.revokeObjectURL(url);
     }
 
+    function triggerImportVault() {
+      const fileInput = document.getElementById('importVaultFileInput');
+      if (fileInput) fileInput.click();
+    }
+
+    async function handleImportVaultFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async function(e) {
+        const rawContent = (e.target.result || '').trim();
+        if (!rawContent) {
+          alert('File backup kosong!');
+          event.target.value = '';
+          return;
+        }
+
+        try {
+          let targetPin = activePin;
+          let vault = null;
+
+          if (targetPin) {
+            try {
+              vault = await decryptVault(rawContent, targetPin);
+            } catch (err) {
+              vault = null;
+            }
+          }
+
+          if (!vault) {
+            const inputPin = prompt('Masukkan 6 digit PIN untuk membuka file backup ini:');
+            if (!inputPin) {
+              event.target.value = '';
+              return;
+            }
+            vault = await decryptVault(rawContent, inputPin);
+            targetPin = inputPin;
+          }
+
+          if (!vault || !vault.loans) {
+            throw new Error('Format file backup tidak valid.');
+          }
+
+          localStorage.setItem(LOCAL_VAULT_KEY, rawContent);
+          activePin = targetPin;
+          loans = vault.loans;
+          cashflow = vault.cashflow || [];
+          parentSummary = vault.parentSummary || {};
+
+          if (!isUnlocked) {
+            resetFailedAttempts();
+            unlockApp();
+          } else {
+            selectedProviders.clear();
+            initProviderFilters();
+            renderDecryptedContent();
+            initCharts();
+            renderAll();
+            lucide.createIcons();
+          }
+
+          alert('✅ Berhasil memulihkan backup!\nTotal: ' + loans.length + ' fasilitas pinjaman & ' + cashflow.length + ' mutasi kas dimuat.');
+        } catch (err) {
+          console.error('Import backup failed:', err);
+          alert('❌ Gagal memulihkan backup. Pastikan file valid dan PIN yang dimasukkan benar.');
+        } finally {
+          event.target.value = '';
+        }
+      };
+      reader.readAsText(file);
+    }
+
     function exportExcel() {
       const dataForExport = loans.map((l, i) => ({
         'No': i + 1,
@@ -2111,5 +2193,8 @@
       document.getElementById('pinInput').focus();
     });
   </script>
+
+  <!-- Hidden File Input for Vault Import/Restore -->
+  <input type="file" id="importVaultFileInput" accept=".b64,.txt" style="display:none" onchange="handleImportVaultFile(event)">
 </body>
 </html>
